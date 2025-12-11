@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   BarChart, 
   Bar, 
@@ -15,12 +19,97 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle,
-  MapPin
+  MapPin,
+  MoreHorizontal,
+  UserPlus,
+  Siren,
 } from "lucide-react";
 import mapBg from "@assets/generated_images/map_background_texture.png";
 import { useToast } from "@/hooks/use-toast";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const data = [
+// Mock Data - Zimbabwean Context
+const DEPARTMENTS = [
+  { id: "coh_water", name: "CoH - Water & Sanitation", type: "Municipal" },
+  { id: "coh_roads", name: "CoH - Roads & Works", type: "Municipal" },
+  { id: "coh_waste", name: "CoH - Waste Management", type: "Municipal" },
+  { id: "zesa", name: "ZESA - Faults", type: "Parastatal" },
+  { id: "zrp", name: "ZRP - Traffic", type: "Police" },
+  { id: "mot", name: "Min. of Transport", type: "Government" },
+];
+
+const ESCALATION_LEVELS = [
+  { id: "L1", name: "Level 1: Ward Team", color: "bg-blue-100 text-blue-700" },
+  { id: "L2", name: "Level 2: District Office", color: "bg-purple-100 text-purple-700" },
+  { id: "L3", name: "Level 3: Town House HQ", color: "bg-orange-100 text-orange-700" },
+  { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
+];
+
+const INITIAL_REPORTS = [
+  {
+    id: "TAR-2025-0042",
+    title: "Deep Pothole on Samora Machel",
+    category: "Roads",
+    location: "Samora Machel Ave",
+    status: "submitted",
+    priority: "High",
+    date: "Today, 10:30 AM",
+    reporter: "Tatenda P.",
+    assignedTo: null,
+    escalation: "L1",
+    description: "Large pothole causing traffic backup. Dangerous for small cars."
+  },
+  {
+    id: "TAR-2025-0041",
+    title: "Burst Pipe - Water Loss",
+    category: "Water",
+    location: "45 Borrowdale Rd",
+    status: "in_progress",
+    priority: "Critical",
+    date: "Yesterday",
+    reporter: "Sarah M.",
+    assignedTo: "CoH - Water & Sanitation",
+    escalation: "L2",
+    description: "Main water line burst. Water flowing into the street for 4 hours."
+  },
+  {
+    id: "TAR-2025-0038",
+    title: "Street Lights Out",
+    category: "Lights",
+    location: "Westgate Area",
+    status: "resolved",
+    priority: "Medium",
+    date: "Dec 09",
+    reporter: "John D.",
+    assignedTo: "ZESA - Faults",
+    escalation: "L1",
+    description: "Entire street is dark. Security risk."
+  },
+];
+
+const chartData = [
   { name: 'Mon', reports: 12 },
   { name: 'Tue', reports: 19 },
   { name: 'Wed', reports: 15 },
@@ -32,11 +121,49 @@ const data = [
 
 export default function AdminDashboard() {
   const { toast } = useToast();
+  const [reports, setReports] = useState(INITIAL_REPORTS);
+  const [selectedReport, setSelectedReport] = useState<typeof INITIAL_REPORTS[0] | null>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedDept, setSelectedDept] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("");
 
   const handleViewReport = (id: string) => {
     toast({
       title: "Opening Report",
       description: `Loading details for report #${id}...`,
+    });
+  };
+
+  const handleAssignClick = (report: typeof INITIAL_REPORTS[0]) => {
+    setSelectedReport(report);
+    setSelectedDept(report.assignedTo || "");
+    setSelectedLevel(report.escalation);
+    setAssignDialogOpen(true);
+  };
+
+  const handleConfirmAssign = () => {
+    if (!selectedReport) return;
+
+    const deptName = DEPARTMENTS.find(d => d.id === selectedDept)?.name || selectedDept;
+
+    setReports(reports.map(r => 
+      r.id === selectedReport.id 
+        ? { ...r, assignedTo: deptName, escalation: selectedLevel, status: 'in_progress' } 
+        : r
+    ));
+
+    toast({
+      title: "Task Assigned Successfully",
+      description: `Report #${selectedReport.id} assigned to ${deptName} at ${ESCALATION_LEVELS.find(l => l.id === selectedLevel)?.name}.`,
+    });
+    setAssignDialogOpen(false);
+  };
+
+  const handleEscalate = (report: typeof INITIAL_REPORTS[0]) => {
+     toast({
+      title: "Escalation Triggered",
+      description: `Report #${report.id} has been flagged for Director attention.`,
+      variant: "destructive",
     });
   };
 
@@ -115,7 +242,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
                   <YAxis axisLine={false} tickLine={false} />
@@ -166,41 +293,131 @@ export default function AdminDashboard() {
                   <th className="px-4 py-3 rounded-l-lg">Tracking ID</th>
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Assigned To</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 rounded-r-lg">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => handleViewReport("TAR-2025-0042")}>
-                  <td className="px-4 py-3 font-mono text-gray-600">TAR-2025-0042</td>
-                  <td className="px-4 py-3">Roads</td>
-                  <td className="px-4 py-3">123 Samora Machel Ave</td>
-                  <td className="px-4 py-3">Today, 10:30 AM</td>
-                  <td className="px-4 py-3"><StatusBadge status="submitted" /></td>
-                  <td className="px-4 py-3 text-primary font-medium">View</td>
-                </tr>
-                <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => handleViewReport("TAR-2025-0041")}>
-                  <td className="px-4 py-3 font-mono text-gray-600">TAR-2025-0041</td>
-                  <td className="px-4 py-3">Water</td>
-                  <td className="px-4 py-3">45 Borrowdale Rd</td>
-                  <td className="px-4 py-3">Yesterday</td>
-                  <td className="px-4 py-3"><StatusBadge status="in_progress" /></td>
-                  <td className="px-4 py-3 text-primary font-medium">View</td>
-                </tr>
-                 <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => handleViewReport("TAR-2025-0038")}>
-                  <td className="px-4 py-3 font-mono text-gray-600">TAR-2025-0038</td>
-                  <td className="px-4 py-3">Street Lights</td>
-                  <td className="px-4 py-3">Westgate Area</td>
-                  <td className="px-4 py-3">Dec 09</td>
-                  <td className="px-4 py-3"><StatusBadge status="resolved" /></td>
-                  <td className="px-4 py-3 text-primary font-medium">View</td>
-                </tr>
+                {reports.map((report) => (
+                  <tr key={report.id} className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-4 py-3 font-mono text-gray-600" onClick={() => handleViewReport(report.id)}>
+                      {report.id}
+                    </td>
+                    <td className="px-4 py-3">{report.category}</td>
+                    <td className="px-4 py-3">{report.location}</td>
+                    <td className="px-4 py-3">
+                       {report.assignedTo ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                {report.assignedTo.substring(0,2).toUpperCase()}
+                              </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">{report.assignedTo}</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Unassigned</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={report.status as any} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary">
+                            <MoreHorizontal size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Manage Issue</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleAssignClick(report)}>
+                            <UserPlus size={14} className="mr-2" /> Assign Team
+                          </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEscalate(report)}>
+                            <AlertCircle size={14} className="mr-2" /> Escalate Issue
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleViewReport(report.id)}>View Full Details</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
+
+      {/* Assignment Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Assign Authority</DialogTitle>
+            <DialogDescription>
+              Select the responsible department and escalation level for this issue.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedReport && (
+            <div className="grid gap-4 py-4">
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
+                <p className="font-medium text-sm text-gray-900">{selectedReport.title}</p>
+                <p className="text-xs text-gray-500 mt-1">{selectedReport.description}</p>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Department / Authority</label>
+                <Select value={selectedDept} onValueChange={setSelectedDept}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {DEPARTMENTS.map(dept => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{dept.name}</span>
+                            <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Escalation Level</label>
+                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                      {ESCALATION_LEVELS.map(level => (
+                        <SelectItem key={level.id} value={level.id}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
+                            <span>{level.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-gray-500">
+                  Level 1 is for local ward teams. Level 3+ notifies city management.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmAssign}>Confirm Assignment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }
