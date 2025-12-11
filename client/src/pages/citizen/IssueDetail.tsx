@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, TextInput, Dimensions } from "react-native-web";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { 
   ChevronLeft, 
   MapPin, 
@@ -9,14 +14,13 @@ import {
   MessageSquare, 
   Share2,
   AlertTriangle,
-  Send,
-  CheckCircle2
+  Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Link } from "wouter";
-import { theme } from "@/theme";
 
-// Mock data store
+// Mock data store - in a real app this would come from an API
 const MOCK_ISSUES: Record<string, any> = {
   "1": {
     id: "1",
@@ -70,7 +74,7 @@ const MOCK_ISSUES: Record<string, any> = {
     date: "2 days ago",
     upvotes: 45,
     reporter: "James K.",
-    imageUrl: null,
+    imageUrl: null, // No image example
     updates: [
       { status: "resolved", date: "Yesterday", note: "Bulbs replaced and circuit fixed." },
       { status: "in_progress", date: "2 days ago", note: "Maintenance team scheduled." },
@@ -111,16 +115,14 @@ export default function IssueDetail({ params }: { params: { id: string } }) {
   if (!issue) {
     return (
       <MobileLayout>
-        <View style={styles.notFoundContainer}>
-          <AlertTriangle size={64} color={theme.colors.gray300} />
-          <Text style={styles.notFoundTitle}>Issue Not Found</Text>
-          <Text style={styles.notFoundText}>The report you are looking for might have been deleted or moved.</Text>
+        <div className="flex flex-col items-center justify-center h-[80vh] p-6 text-center">
+          <AlertTriangle className="h-16 w-16 text-gray-300 mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Issue Not Found</h2>
+          <p className="text-gray-500 mb-6">The report you are looking for might have been deleted or moved.</p>
           <Link href="/citizen/home">
-            <TouchableOpacity style={styles.homeButton}>
-              <Text style={styles.homeButtonText}>Go Home</Text>
-            </TouchableOpacity>
+            <Button>Go Home</Button>
           </Link>
-        </View>
+        </div>
       </MobileLayout>
     );
   }
@@ -160,506 +162,148 @@ export default function IssueDetail({ params }: { params: { id: string } }) {
 
   return (
     <MobileLayout showNav={false}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header with Image */}
-        <View style={styles.imageHeader}>
-          {issue.imageUrl ? (
-            <Image 
-              source={{ uri: issue.imageUrl }} 
-              style={styles.headerImage} 
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.headerPlaceholder}>
-              <MapPin size={80} color="rgba(255,255,255,0.2)" />
-            </View>
-          )}
+      {/* Header with Image */}
+      <div className="relative h-64 bg-gray-900">
+        {issue.imageUrl ? (
+          <img 
+            src={issue.imageUrl} 
+            alt={issue.title} 
+            className="w-full h-full object-cover opacity-80"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-800">
+            <MapPin className="text-white/20 h-20 w-20" />
+          </div>
+        )}
+        
+        {/* Navigation Header Overlay */}
+        <div className="absolute top-0 left-0 right-0 p-4 pt-safe flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
+          <Link href="/citizen/home" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 text-white shadow-lg transition-colors">
+             <ChevronLeft size={24} />
+          </Link>
+          <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 text-white shadow-lg" onClick={handleShare}>
+            <Share2 size={20} />
+          </Button>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <Badge className="bg-primary hover:bg-primary border-none text-white">{issue.category}</Badge>
+            <StatusBadge status={issue.status} className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-transparent" />
+          </div>
+          <h1 className="text-2xl font-heading font-bold leading-tight">{issue.title}</h1>
+        </div>
+      </div>
+
+      <div className="px-6 py-6 space-y-6">
+        {/* Meta Info */}
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <div className="flex items-center gap-2">
+            <Clock size={16} />
+            <span>{issue.date}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs">{issue.trackingId}</span>
+          </div>
+        </div>
+
+        {/* Location Card */}
+        <Card className="bg-gray-50 border-gray-200 shadow-sm">
+          <CardContent className="p-4 flex items-start gap-3">
+            <MapPin className="text-primary shrink-0 mt-0.5" size={20} />
+            <div>
+              <p className="font-medium text-gray-900 text-sm">{issue.location}</p>
+              <p className="text-xs text-gray-500 mt-1">Ward 7, Avondale West</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Description */}
+        <div>
+          <h3 className="font-heading font-semibold text-gray-900 mb-2">Description</h3>
+          <p className="text-gray-600 leading-relaxed text-sm">
+            {issue.description}
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-4">
+          <Button className="flex-1 h-12 gap-2 text-base" onClick={handleUpvote}>
+            <ThumbsUp size={18} />
+            Upvote ({issue.upvotes})
+          </Button>
+          <Button variant="outline" className="flex-1 h-12 gap-2 text-base">
+            <MessageSquare size={18} />
+            Comment ({comments.length})
+          </Button>
+        </div>
+
+        <Separator />
+
+        {/* Timeline Updates */}
+        <div>
+          <h3 className="font-heading font-semibold text-gray-900 mb-4">Status Updates</h3>
+          <div className="relative pl-4 border-l-2 border-gray-100 space-y-8">
+            {issue.updates.map((update: any, index: number) => (
+              <div key={index} className="relative">
+                <div className={`absolute -left-[21px] top-0 w-4 h-4 rounded-full border-2 border-white shadow-sm ${index === 0 ? 'bg-primary' : 'bg-gray-300'}`} />
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-sm font-semibold ${index === 0 ? 'text-primary' : 'text-gray-600'}`}>
+                      {update.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                    <span className="text-xs text-gray-400">• {update.date}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{update.note}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Comments Section */}
+        <div>
+          <h3 className="font-heading font-semibold text-gray-900 mb-4">Discussion</h3>
           
-          {/* Navigation Header Overlay */}
-          <View style={styles.overlayHeader}>
-            <Link href="/citizen/home">
-              <TouchableOpacity style={styles.iconButton}>
-                <ChevronLeft size={24} color="white" />
-              </TouchableOpacity>
-            </Link>
-            <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
-              <Share2 size={20} color="white" />
-            </TouchableOpacity>
-          </View>
+          {/* Comment List */}
+          <div className="space-y-4 mb-6">
+            {comments.map((comment: any) => (
+              <div key={comment.id} className="flex gap-3">
+                <Avatar className="h-8 w-8 mt-1">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.user}`} />
+                  <AvatarFallback>{comment.user[0]}</AvatarFallback>
+                </Avatar>
+                <div className="bg-gray-50 rounded-2xl rounded-tl-none p-3 flex-1">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className="font-semibold text-sm text-gray-900">{comment.user}</span>
+                    <span className="text-xs text-gray-400">{comment.time}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{comment.text}</p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <p className="text-center text-gray-400 text-sm py-4">No comments yet. Be the first to discuss.</p>
+            )}
+          </div>
 
-          <View style={styles.imageOverlayContent}>
-            <View style={styles.badgesRow}>
-              <View style={styles.categoryBadge}>
-                <Text style={styles.categoryBadgeText}>{issue.category}</Text>
-              </View>
-              <View style={[styles.statusBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-                <Text style={styles.statusBadgeText}>{issue.status}</Text>
-              </View>
-            </View>
-            <Text style={styles.title}>{issue.title}</Text>
-          </View>
-        </View>
-
-        <View style={styles.content}>
-          {/* Meta Info */}
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Clock size={16} color={theme.colors.gray500} />
-              <Text style={styles.metaText}>{issue.date}</Text>
-            </View>
-            <View style={styles.trackingIdBadge}>
-              <Text style={styles.trackingIdText}>{issue.trackingId}</Text>
-            </View>
-          </View>
-
-          {/* Location Card */}
-          <View style={styles.locationCard}>
-            <MapPin size={20} color={theme.colors.primary} style={{ marginTop: 2 }} />
-            <View>
-              <Text style={styles.locationMain}>{issue.location}</Text>
-              <Text style={styles.locationSub}>Ward 7, Avondale West</Text>
-            </View>
-          </View>
-
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.descriptionText}>
-              {issue.description}
-            </Text>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity style={styles.actionButtonPrimary} onPress={handleUpvote}>
-              <ThumbsUp size={18} color="white" />
-              <Text style={styles.actionButtonPrimaryText}>Upvote ({issue.upvotes})</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButtonOutline}>
-              <MessageSquare size={18} color={theme.colors.gray800} />
-              <Text style={styles.actionButtonOutlineText}>Comment ({comments.length})</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.separator} />
-
-          {/* Timeline Updates */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Status Updates</Text>
-            <View style={styles.timeline}>
-              <View style={styles.timelineLine} />
-              {issue.updates.map((update: any, index: number) => (
-                <View key={index} style={styles.timelineItem}>
-                  <View style={[
-                    styles.timelineDot,
-                    { backgroundColor: index === 0 ? theme.colors.primary : theme.colors.gray300 }
-                  ]} />
-                  <View style={styles.timelineContent}>
-                    <View style={styles.timelineHeader}>
-                      <Text style={[
-                        styles.timelineStatus,
-                        { color: index === 0 ? theme.colors.primary : theme.colors.gray500 }
-                      ]}>
-                        {update.status.replace('_', ' ').toUpperCase()}
-                      </Text>
-                      <Text style={styles.timelineDate}>• {update.date}</Text>
-                    </View>
-                    <Text style={styles.timelineNote}>{update.note}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.separator} />
-
-          {/* Comments Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Discussion</Text>
-            
-            {/* Comment List */}
-            <View style={styles.commentsList}>
-              {comments.map((comment: any) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <View style={styles.avatar}>
-                     <Text style={styles.avatarText}>{comment.user[0]}</Text>
-                  </View>
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentUser}>{comment.user}</Text>
-                      <Text style={styles.commentTime}>{comment.time}</Text>
-                    </View>
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                  </View>
-                </View>
-              ))}
-              {comments.length === 0 && (
-                <Text style={styles.emptyComments}>No comments yet. Be the first to discuss.</Text>
-              )}
-            </View>
-
-            {/* Add Comment Input */}
-            <View style={styles.commentInputContainer}>
-              <TextInput 
-                placeholder="Add a comment..." 
-                style={styles.commentInput}
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholderTextColor={theme.colors.gray400}
-                // onKeyDown not supported in RNW standard props easily without handling, relying on button
-              />
-              <TouchableOpacity 
-                style={[styles.sendButton, !newComment.trim() && styles.disabledSendButton]} 
-                onPress={handlePostComment} 
-                disabled={!newComment.trim()}
-              >
-                <Send size={18} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+          {/* Add Comment Input */}
+          <div className="flex gap-2 items-end sticky bottom-0 bg-white pt-2 pb-6 border-t border-gray-100 -mx-6 px-6">
+            <Input 
+              placeholder="Add a comment..." 
+              className="bg-gray-50 border-gray-200 focus-visible:ring-primary"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+            />
+            <Button size="icon" className="shrink-0" onClick={handlePostComment} disabled={!newComment.trim()}>
+              <Send size={18} />
+            </Button>
+          </div>
+        </div>
+      </div>
     </MobileLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingBottom: 24,
-  },
-  notFoundContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    height: 400,
-  },
-  notFoundTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.colors.gray900,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  notFoundText: {
-    fontSize: 16,
-    color: theme.colors.gray500,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  homeButton: {
-    backgroundColor: theme.colors.gray900,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  homeButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  imageHeader: {
-    height: 256,
-    backgroundColor: theme.colors.gray900,
-    position: 'relative',
-  },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-    opacity: 0.8,
-  },
-  headerPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: theme.colors.gray800,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  overlayHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 10,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backdropFilter: 'blur(4px)',
-  },
-  imageOverlayContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 24,
-    background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 8,
-  },
-  categoryBadge: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  categoryBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backdropFilter: 'blur(4px)',
-  },
-  statusBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: 'white',
-    lineHeight: 28,
-  },
-  content: {
-    padding: 24,
-    gap: 24,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metaText: {
-    color: theme.colors.gray500,
-    fontSize: 14,
-  },
-  trackingIdBadge: {
-    backgroundColor: theme.colors.gray100,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  trackingIdText: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    color: theme.colors.gray800,
-  },
-  locationCard: {
-    backgroundColor: theme.colors.gray100,
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
-    gap: 12,
-  },
-  locationMain: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.gray900,
-  },
-  locationSub: {
-    fontSize: 12,
-    color: theme.colors.gray500,
-    marginTop: 2,
-  },
-  section: {
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.gray900,
-    marginBottom: 8,
-  },
-  descriptionText: {
-    fontSize: 14,
-    color: theme.colors.gray800,
-    lineHeight: 22,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  actionButtonPrimary: {
-    flex: 1,
-    height: 48,
-    backgroundColor: theme.colors.gray900,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  actionButtonPrimaryText: {
-    color: 'white',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  actionButtonOutline: {
-    flex: 1,
-    height: 48,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: theme.colors.gray200,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  actionButtonOutlineText: {
-    color: theme.colors.gray800,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: theme.colors.gray200,
-  },
-  timeline: {
-    position: 'relative',
-    paddingLeft: 16,
-    gap: 32,
-  },
-  timelineLine: {
-    position: 'absolute',
-    left: 0,
-    top: 8,
-    bottom: 0,
-    width: 2,
-    backgroundColor: theme.colors.gray100,
-  },
-  timelineItem: {
-    position: 'relative',
-  },
-  timelineDot: {
-    position: 'absolute',
-    left: -21,
-    top: 0,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: 'white',
-    zIndex: 10,
-    ...theme.shadows.sm,
-  },
-  timelineContent: {
-    gap: 4,
-  },
-  timelineHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timelineStatus: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  timelineDate: {
-    fontSize: 12,
-    color: theme.colors.gray400,
-  },
-  timelineNote: {
-    fontSize: 14,
-    color: theme.colors.gray600,
-  },
-  commentsList: {
-    gap: 16,
-    marginBottom: 24,
-  },
-  commentItem: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.gray200,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.gray600,
-  },
-  commentContent: {
-    flex: 1,
-    backgroundColor: theme.colors.gray100,
-    padding: 12,
-    borderRadius: 16,
-    borderTopLeftRadius: 0,
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  commentUser: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.gray900,
-  },
-  commentTime: {
-    fontSize: 12,
-    color: theme.colors.gray400,
-  },
-  commentText: {
-    fontSize: 14,
-    color: theme.colors.gray800,
-  },
-  emptyComments: {
-    textAlign: 'center',
-    color: theme.colors.gray400,
-    fontSize: 14,
-    paddingVertical: 16,
-  },
-  commentInputContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-  },
-  commentInput: {
-    flex: 1,
-    height: 48,
-    backgroundColor: theme.colors.gray100,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    outlineStyle: 'none',
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledSendButton: {
-    backgroundColor: theme.colors.gray300,
-  },
-});

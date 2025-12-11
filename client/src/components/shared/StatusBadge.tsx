@@ -1,42 +1,27 @@
-import { View, Text, StyleSheet } from "react-native-web";
-import { theme } from "@/theme";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Status = 'submitted' | 'verified' | 'in_progress' | 'resolved' | 'critical';
 
 interface StatusBadgeProps {
   status: Status;
-  style?: any;
+  className?: string;
 }
 
-const statusConfig: Record<Status, { label: string; bg: string; color: string }> = {
-  submitted: { label: 'Submitted', bg: theme.colors.gray100, color: theme.colors.gray800 },
-  verified: { label: 'Verified', bg: '#DBEAFE', color: '#1E40AF' }, // Blue
-  in_progress: { label: 'In Progress', bg: '#FEF3C7', color: '#92400E' }, // Amber
-  resolved: { label: 'Resolved', bg: '#DCFCE7', color: '#166534' }, // Green
-  critical: { label: 'Critical', bg: '#FEE2E2', color: '#991B1B' }, // Red
+const statusConfig: Record<Status, { label: string; className: string }> = {
+  submitted: { label: 'Submitted', className: 'bg-gray-100 text-gray-600 hover:bg-gray-100' },
+  verified: { label: 'Verified', className: 'bg-accent/10 text-accent hover:bg-accent/20' },
+  in_progress: { label: 'In Progress', className: 'bg-warning/10 text-warning hover:bg-warning/20' },
+  resolved: { label: 'Resolved', className: 'bg-success/10 text-success hover:bg-success/20' },
+  critical: { label: 'Critical', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
 };
 
-export function StatusBadge({ status, style }: StatusBadgeProps) {
+export function StatusBadge({ status, className }: StatusBadgeProps) {
   const config = statusConfig[status] || statusConfig.submitted;
   
   return (
-    <View style={[styles.badge, { backgroundColor: config.bg }, style]}>
-      <Text style={[styles.text, { color: config.color }]}>
-        {config.label}
-      </Text>
-    </View>
+    <Badge variant="secondary" className={cn("font-medium", config.className, className)}>
+      {config.label}
+    </Badge>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  text: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});

@@ -1,236 +1,98 @@
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "react-native-web";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Award, ArrowUpRight, ArrowDownLeft, Gift, History } from "lucide-react";
-import { theme } from "@/theme";
+import { Separator } from "@/components/ui/separator";
 
 export default function CitizenCredits() {
   return (
     <MobileLayout>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.headerTitle}>CivicCredits Wallet</Text>
+      <div className="px-6 pt-12 pb-6">
+        <h1 className="text-2xl font-heading font-bold text-gray-900 mb-6">CivicCredits Wallet</h1>
 
         {/* Main Balance Card */}
-        <View style={styles.balanceCard}>
-          <View style={styles.cardBackgroundIcon}>
-            <Award size={140} color="rgba(255,255,255,0.1)" />
-          </View>
-          
-          <View style={styles.cardContent}>
-             <Text style={styles.balanceLabel}>Available Balance</Text>
-             <View style={styles.balanceRow}>
-               <Text style={styles.balanceAmount}>450</Text>
-               <Text style={styles.balanceUnit}>CC</Text>
-             </View>
+        <Card className="bg-gradient-to-br from-primary to-primary/80 border-none shadow-xl mb-8 overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Award size={140} />
+          </div>
+          <CardContent className="p-8 text-white relative z-10">
+             <p className="text-primary-foreground/80 font-medium mb-2">Available Balance</p>
+             <h3 className="text-5xl font-bold font-heading mb-6 tracking-tight">450 <span className="text-2xl opacity-80">CC</span></h3>
              
-             <View style={styles.equivalentBadge}>
-               <Text style={styles.equivalentLabel}>Equivalent Value</Text>
-               <Text style={styles.equivalentAmount}>≈ $2,250 ZWL</Text>
-             </View>
-          </View>
-        </View>
+             <div className="flex gap-3">
+               <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-lg">
+                 <p className="text-xs opacity-70 mb-1">Equivalent Value</p>
+                 <p className="font-semibold text-lg">≈ $2,250 ZWL</p>
+               </div>
+             </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Gift size={24} color={theme.colors.primary} />
-            <Text style={styles.actionLabel}>Redeem</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <History size={24} color={theme.colors.primary} />
-            <Text style={styles.actionLabel}>History</Text>
-          </TouchableOpacity>
-        </View>
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <Button className="h-14 bg-white hover:bg-gray-50 text-primary border border-gray-100 shadow-sm flex flex-col gap-1 items-center justify-center">
+            <Gift size={20} />
+            <span className="text-xs font-medium">Redeem</span>
+          </Button>
+          <Button className="h-14 bg-white hover:bg-gray-50 text-primary border border-gray-100 shadow-sm flex flex-col gap-1 items-center justify-center">
+            <History size={20} />
+            <span className="text-xs font-medium">History</span>
+          </Button>
+        </div>
 
         {/* Recent Transactions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+        <div className="space-y-6">
+          <h3 className="font-heading font-semibold text-gray-900">Recent Transactions</h3>
           
-          <View style={styles.transactionsList}>
+          <div className="space-y-4">
             {/* Transaction 1 */}
-            <View style={styles.transactionItem}>
-              <View style={styles.transactionLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-                  <ArrowDownLeft size={20} color={theme.colors.success} />
-                </View>
-                <View>
-                  <Text style={styles.transactionTitle}>Report Verified</Text>
-                  <Text style={styles.transactionSubtitle}>Pothole on Samora Machel</Text>
-                </View>
-              </View>
-              <Text style={[styles.transactionAmount, { color: theme.colors.success }]}>+15 CC</Text>
-            </View>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                  <ArrowDownLeft size={20} />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Report Verified</p>
+                  <p className="text-xs text-gray-500">Pothole on Samora Machel</p>
+                </div>
+              </div>
+              <span className="font-bold text-green-600">+15 CC</span>
+            </div>
             
-            <View style={styles.separator} />
+            <Separator />
 
             {/* Transaction 2 */}
-            <View style={styles.transactionItem}>
-              <View style={styles.transactionLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-                  <ArrowDownLeft size={20} color={theme.colors.success} />
-                </View>
-                <View>
-                  <Text style={styles.transactionTitle}>Report Upvoted</Text>
-                  <Text style={styles.transactionSubtitle}>Street Light Issue</Text>
-                </View>
-              </View>
-              <Text style={[styles.transactionAmount, { color: theme.colors.success }]}>+1 CC</Text>
-            </View>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                  <ArrowDownLeft size={20} />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Report Upvoted</p>
+                  <p className="text-xs text-gray-500">Street Light Issue</p>
+                </div>
+              </div>
+              <span className="font-bold text-green-600">+1 CC</span>
+            </div>
 
-            <View style={styles.separator} />
+            <Separator />
 
              {/* Transaction 3 */}
-            <View style={styles.transactionItem}>
-              <View style={styles.transactionLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: '#FFEDD5' }]}>
-                  <ArrowUpRight size={20} color={theme.colors.secondary} />
-                </View>
-                <View>
-                  <Text style={styles.transactionTitle}>Airtime Redemption</Text>
-                  <Text style={styles.transactionSubtitle}>Econet $1 USD Bundle</Text>
-                </View>
-              </View>
-              <Text style={[styles.transactionAmount, { color: theme.colors.gray900 }]}>-100 CC</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center">
+                  <ArrowUpRight size={20} />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Airtime Redemption</p>
+                  <p className="text-xs text-gray-500">Econet $1 USD Bundle</p>
+                </div>
+              </div>
+              <span className="font-bold text-gray-900">-100 CC</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </MobileLayout>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 24,
-    paddingTop: 48,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: theme.colors.gray900,
-    marginBottom: 24,
-  },
-  balanceCard: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 32,
-    ...theme.shadows.lg,
-    position: 'relative',
-    height: 200,
-  },
-  cardBackgroundIcon: {
-    position: 'absolute',
-    top: -20,
-    right: -20,
-  },
-  cardContent: {
-    padding: 32,
-    zIndex: 10,
-  },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 24,
-  },
-  balanceAmount: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: 'white',
-  },
-  balanceUnit: {
-    fontSize: 24,
-    color: 'rgba(255,255,255,0.8)',
-    marginLeft: 8,
-  },
-  equivalentBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    backdropFilter: 'blur(8px)',
-  },
-  equivalentLabel: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.7)',
-    marginBottom: 2,
-  },
-  equivalentAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 32,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: 'white',
-    height: 80,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.gray100,
-    ...theme.shadows.sm,
-  },
-  actionLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: theme.colors.gray800,
-  },
-  section: {
-    gap: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.gray900,
-  },
-  transactionsList: {
-    gap: 16,
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  transactionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  transactionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.gray900,
-  },
-  transactionSubtitle: {
-    fontSize: 12,
-    color: theme.colors.gray500,
-  },
-  transactionAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  separator: {
-    height: 1,
-    backgroundColor: theme.colors.gray100,
-  },
-});
