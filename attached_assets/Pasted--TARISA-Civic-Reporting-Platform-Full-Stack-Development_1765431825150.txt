@@ -1,0 +1,638 @@
+# TARISA Civic Reporting Platform - Full Stack Development Prompt
+
+## Project Overview
+Build a complete civic-tech platform called **TARISA** (meaning "Look" in Shona) - an AI-powered mobile and web application for Zimbabwe that enables citizens to report municipal issues and earn rewards.
+
+**Tagline:** "See It. Snap It. Solve It. Get Rewarded."
+
+---
+
+## 1. System Architecture
+
+### Frontend Stack
+- **Mobile App:** React Native with Expo (TypeScript)
+- **Web Admin App:** React with TypeScript
+- **State Management:** React Context API or Redux Toolkit
+- **Navigation:** React Navigation v6+ (mobile)
+- **Styling:** React Native Paper / Tailwind CSS (web)
+
+### Backend Stack
+- **Runtime:** Node.js with Express
+- **Database:** PostgreSQL with PostGIS extension (for geospatial data)
+- **Authentication:** JWT-based auth with email verification
+- **File Storage:** Cloud storage (S3-compatible or Cloudinary)
+- **Maps API:** Mapbox GL JS or Google Maps API
+- **Hosting:** Deploy to Replit initially, production-ready architecture
+
+### API Structure
+- RESTful API with clear endpoints
+- File upload handling for photos/videos
+- WebSocket support for real-time updates (optional phase 2)
+
+---
+
+## 2. Core Features & User Flows
+
+### 2.1 Citizen Mobile App
+
+#### A. Home Dashboard
+```
+Components:
+- Welcome banner with user's name and ward
+- Quick stats cards (My Reports, Credits Earned, Issues Resolved)
+- "My Recent Reports" list (last 5 submissions)
+- "Nearby Issues" carousel (within 2km radius)
+- "Trending in My Ward" section
+- Quick action FAB for Report Issue
+```
+
+#### B. Interactive Map Screen
+```
+Features:
+- Full-screen map with geolocation
+- Color-coded markers by status:
+  * Gray (#9E9E9E) - Submitted
+  * Blue (#2196F3) - Verified
+  * Orange (#FF9800) - In Progress
+  * Green (#4CAF50) - Resolved
+  * Red (#D32F2F) - Critical
+- Filter chips (All, Roads, Water, Sewer, Waste, Lights)
+- Search bar for location/address
+- Expandable bottom sheet showing issue preview on marker tap
+- Cluster markers when zoomed out
+```
+
+#### C. Report Issue Flow (Multi-step)
+```
+Step 1: Camera/Gallery
+- Capture photo or select from gallery
+- Option to add video (optional)
+
+Step 2: Auto-Location Detection
+- GPS auto-capture with accuracy indicator
+- Map preview showing pin location
+- Manual pin adjustment if needed
+- Address auto-fill from reverse geocoding
+
+Step 3: Issue Categorization
+- Category selection (Roads, Water, Sewer, Waste, Street Lights, Other)
+- Sub-category dropdowns
+- Severity slider (Low/Medium/High/Critical)
+
+Step 4: Description
+- Optional text description (max 500 chars)
+- Tag relevant department
+
+Step 5: Duplicate Check & Submit
+- System checks for existing reports within 50m radius
+- If duplicate found, show existing issue and option to upvote
+- If unique, submit with confirmation
+- Generate unique tracking ID
+- Success message with tracking number
+```
+
+#### D. Issue Detail Screen
+```
+Layout:
+- Image carousel (swipeable photos/videos)
+- Status badge and timeline
+- Map snapshot showing location
+- Description text
+- Upvote button with count
+- Municipal updates feed (comments from officials)
+- Verification count from other users
+- "Share Issue" button
+- Report inappropriate content button
+```
+
+#### E. CivicCredits Wallet
+```
+Components:
+- Large balance card showing total credits
+- Conversion rate display (1 Credit = $5 ZWL equivalent)
+- Earnings timeline (list of resolved issues)
+- Transaction history
+- Redemption options (Phase 2 - initially show "Coming Soon")
+```
+
+#### F. Profile & Settings
+```
+Sections:
+- Profile photo, name, email, phone
+- Ward/Location assignment
+- Email verification status
+- Notification preferences
+- Language selection (English/Shona)
+- App version
+- Privacy policy & Terms
+- Logout button
+```
+
+#### G. Bottom Tab Navigation
+```
+5 Tabs:
+1. Home (🏠)
+2. Map (🗺️)
+3. Report (➕ with FAB styling)
+4. Credits (💰)
+5. Profile (👤)
+```
+
+---
+
+### 2.2 Web Admin Dashboard
+
+#### A. Admin Dashboard Home
+```
+Layout:
+- Top stats cards:
+  * Total Reports
+  * Pending Reviews
+  * In Progress
+  * Resolved This Month
+  * Average Resolution Time
+  
+- Interactive Heat Map:
+  * Category filters (multi-select chips)
+  * Date range picker
+  * Ward/district selector
+  * Legend showing icons and colors:
+    - 🚧 Road Works (Red)
+    - 🕳️ Sewer Works (Blue)
+    - 💧 Water Works (Green)
+    - 🗑️ Waste (Brown)
+    - 💡 Street Lights (Yellow)
+  
+- Recent Activity Feed
+- Performance Metrics by Department
+```
+
+#### B. Reports Management Table
+```
+Features:
+- Sortable columns: ID, Date, Category, Location, Status, Upvotes
+- Filter dropdowns: Status, Category, Ward, Date Range
+- Search bar (by ID or location)
+- Bulk actions (assign, update status)
+- Row actions: View Details, Edit, Delete
+- Export to CSV/PDF
+- Pagination
+```
+
+#### C. Detailed Report View (Admin)
+```
+Layout:
+- Full image carousel
+- Report metadata (ID, timestamp, reporter info)
+- Location map with coordinates
+- Status change history
+- Internal notes section (admin only)
+- Assignment dropdown (select officer/department)
+- Status update buttons (Verify, Assign, In Progress, Resolve, Reject)
+- Activity log (all status changes with timestamps)
+- Public comments section
+```
+
+#### D. User Management
+```
+Features:
+- List of all users
+- Filter by role (Citizen, Officer, Admin)
+- View user activity (reports submitted, credits earned)
+- Block/Unblock users
+- Email verification status
+- Prevent duplicate account detection
+```
+
+#### E. Officers/Department Queue
+```
+View for Municipal Officers:
+- Assigned issues queue
+- Priority sorting
+- Quick status update
+- Add work notes
+- Upload completion photos
+- Mark as resolved
+```
+
+---
+
+## 3. Data Models (TypeScript Interfaces)
+
+```typescript
+// User Model
+interface User {
+  id: string;
+  email: string;
+  password: string; // hashed
+  fullName: string;
+  phone: string;
+  profilePhoto?: string;
+  ward: string;
+  role: 'citizen' | 'officer' | 'admin';
+  civicCredits: number;
+  emailVerified: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Issue Report Model
+interface IssueReport {
+  id: string;
+  trackingNumber: string; // e.g., "TAR-2024-00123"
+  userId: string;
+  category: 'roads' | 'water' | 'sewer' | 'waste' | 'lights' | 'other';
+  subCategory: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'submitted' | 'verified' | 'in_progress' | 'resolved' | 'rejected';
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    ward: string;
+  };
+  description?: string;
+  photos: string[]; // URLs
+  videos?: string[];
+  upvotes: number;
+  verifications: string[]; // user IDs who verified
+  assignedTo?: string; // officer ID
+  assignedDept?: string;
+  resolutionNotes?: string;
+  resolutionPhotos?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  resolvedAt?: Date;
+}
+
+// Status Update Model
+interface StatusUpdate {
+  id: string;
+  issueId: string;
+  userId: string;
+  previousStatus: string;
+  newStatus: string;
+  comment?: string;
+  timestamp: Date;
+}
+
+// CivicCredit Transaction Model
+interface CreditTransaction {
+  id: string;
+  userId: string;
+  issueId: string;
+  amount: number;
+  type: 'earned' | 'redeemed';
+  description: string;
+  createdAt: Date;
+}
+```
+
+---
+
+## 4. API Endpoints Structure
+
+### Authentication
+```
+POST   /api/auth/register          - Register new user with email verification
+POST   /api/auth/login             - Login and get JWT token
+POST   /api/auth/verify-email      - Verify email with token
+POST   /api/auth/forgot-password   - Request password reset
+POST   /api/auth/reset-password    - Reset password with token
+GET    /api/auth/me                - Get current user profile
+```
+
+### Issues
+```
+POST   /api/issues                 - Create new issue report
+GET    /api/issues                 - Get all issues (with filters)
+GET    /api/issues/:id             - Get specific issue details
+PUT    /api/issues/:id             - Update issue (admin/officer)
+DELETE /api/issues/:id             - Delete issue (admin only)
+POST   /api/issues/:id/upvote      - Upvote an issue
+POST   /api/issues/:id/verify      - Verify an issue
+GET    /api/issues/nearby          - Get issues near location
+POST   /api/issues/check-duplicate - Check for duplicate before submit
+```
+
+### Users
+```
+GET    /api/users                  - Get all users (admin)
+GET    /api/users/:id              - Get user profile
+PUT    /api/users/:id              - Update user profile
+GET    /api/users/:id/reports      - Get user's reports
+GET    /api/users/:id/credits      - Get user's credit history
+```
+
+### Admin/Officer
+```
+GET    /api/admin/dashboard        - Get dashboard statistics
+GET    /api/admin/reports          - Get reports for management
+PUT    /api/admin/reports/:id/assign - Assign report to officer
+PUT    /api/admin/reports/:id/status - Update report status
+GET    /api/admin/analytics        - Get analytics data for heat map
+```
+
+### File Upload
+```
+POST   /api/upload/photo           - Upload single photo
+POST   /api/upload/video           - Upload video
+```
+
+---
+
+## 5. UI Design System
+
+### Color Palette
+```css
+Primary: #2E7D32 (Green - Zimbabwe flag inspired)
+PrimaryDark: #1B5E20
+Secondary: #F57C00 (Orange)
+Accent: #0288D1 (Blue)
+
+Status Colors:
+Submitted: #9E9E9E (Gray)
+Verified: #2196F3 (Blue)
+In Progress: #FF9800 (Orange)
+Resolved: #4CAF50 (Green)
+Critical: #D32F2F (Red)
+
+Background: #F5F5F5
+Card: #FFFFFF
+Text Primary: #212121
+Text Secondary: #757575
+```
+
+### Typography
+```
+iOS: SF Pro
+Android: Roboto
+
+H1: 32px bold
+H2: 24px semibold
+H3: 20px semibold
+Body: 14px regular
+Caption: 12px regular
+Button: 16px medium
+```
+
+### Component Styling
+- Elevated cards with shadow
+- Border radius: 12px
+- FAB for primary actions
+- Bottom sheets for detailed views
+- Skeleton loaders during data fetch
+- Animated progress indicators
+- Swipe actions on lists
+- Pull-to-refresh on all lists
+
+---
+
+## 6. Key Validations & Business Rules
+
+### Duplicate Prevention
+- Check for existing issues within 50m radius of new report
+- Same category required for duplicate detection
+- If duplicate found, prompt user to upvote instead
+- Maximum 3 upvotes per user per issue
+
+### User Account Validation
+- Email verification required before first report
+- Prevent multiple accounts: check email and phone uniqueness
+- Rate limiting: Max 10 reports per day per user
+- Minimum 100m distance between consecutive reports from same user
+
+### CivicCredits Rules
+- Earn 1 credit when reported issue is marked "Resolved"
+- Credit only awarded if issue verified by 2+ other users OR admin verified
+- Credits non-transferable between users
+- Credit redemption (Phase 2 feature)
+
+### Image/Video Rules
+- Max 3 photos per report
+- Max 1 video (30 seconds, 50MB limit)
+- Auto-compress images to max 1MB
+- Required: at least 1 photo per report
+
+---
+
+## 7. Development Phases
+
+### Phase 1 (MVP - Build This First)
+✅ User authentication (register, login, email verification)
+✅ Report issue flow (camera, GPS, categorization, submit)
+✅ Interactive map with all issues
+✅ Issue detail view with status timeline
+✅ Basic admin dashboard with reports table
+✅ Status update by admin/officer
+✅ CivicCredits earning (display only)
+✅ Basic duplicate detection
+✅ Mobile responsive web admin
+
+### Phase 2 (Enhancements)
+- AI image recognition for auto-categorization
+- CivicCredits redemption system
+- Advanced analytics and heat maps
+- Push notifications
+- In-app chat between reporter and officer
+- Leaderboard and gamification
+- SMS reporting for non-smartphone users
+- Multi-language support (Shona translation)
+
+---
+
+## 8. Folder Structure
+
+```
+tarisa-app/
+├── mobile/                      # React Native app
+│   ├── src/
+│   │   ├── screens/
+│   │   │   ├── HomeScreen.tsx
+│   │   │   ├── MapScreen.tsx
+│   │   │   ├── ReportIssueFlow/
+│   │   │   ├── IssueDetailScreen.tsx
+│   │   │   ├── CivicCreditsScreen.tsx
+│   │   │   └── ProfileScreen.tsx
+│   │   ├── components/
+│   │   │   ├── IssueCard.tsx
+│   │   │   ├── StatusBadge.tsx
+│   │   │   ├── MapMarker.tsx
+│   │   │   └── ...
+│   │   ├── navigation/
+│   │   │   └── AppNavigator.tsx
+│   │   ├── services/
+│   │   │   ├── api.ts
+│   │   │   ├── auth.ts
+│   │   │   └── location.ts
+│   │   ├── hooks/
+│   │   ├── types/
+│   │   ├── utils/
+│   │   └── constants/
+│   └── App.tsx
+│
+├── web/                         # React web admin
+│   ├── src/
+│   │   ├── pages/
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── ReportsTable.tsx
+│   │   │   ├── ReportDetail.tsx
+│   │   │   └── UserManagement.tsx
+│   │   ├── components/
+│   │   ├── services/
+│   │   └── types/
+│   └── App.tsx
+│
+├── server/                      # Node.js backend
+│   ├── src/
+│   │   ├── routes/
+│   │   │   ├── auth.ts
+│   │   │   ├── issues.ts
+│   │   │   ├── users.ts
+│   │   │   └── admin.ts
+│   │   ├── controllers/
+│   │   ├── models/
+│   │   ├── middleware/
+│   │   │   ├── auth.ts
+│   │   │   └── validation.ts
+│   │   ├── services/
+│   │   │   ├── email.ts
+│   │   │   ├── storage.ts
+│   │   │   └── geolocation.ts
+│   │   └── utils/
+│   └── server.ts
+│
+└── shared/                      # Shared types/constants
+    └── types.ts
+```
+
+---
+
+## 9. Initial Setup Instructions
+
+### Prerequisites
+```bash
+Node.js v18+
+PostgreSQL with PostGIS
+npm or yarn
+Expo CLI (for mobile)
+```
+
+### Environment Variables (.env)
+```env
+# Server
+PORT=3000
+DATABASE_URL=postgresql://user:password@localhost:5432/tarisa
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=7d
+
+# Email (SendGrid or similar)
+EMAIL_SERVICE=sendgrid
+EMAIL_API_KEY=your-key
+EMAIL_FROM=noreply@tarisa.co.zw
+
+# Storage (Cloudinary or AWS S3)
+STORAGE_PROVIDER=cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud
+CLOUDINARY_API_KEY=your-key
+CLOUDINARY_API_SECRET=your-secret
+
+# Maps
+MAPBOX_API_KEY=your-mapbox-key
+# OR
+GOOGLE_MAPS_API_KEY=your-google-key
+
+# Mobile App
+EXPO_PUBLIC_API_URL=http://localhost:3000/api
+```
+
+---
+
+## 10. Testing Data & Scenarios
+
+### Seed Data
+Create test accounts:
+```
+Admin: admin@tarisa.co.zw / Admin123!
+Officer: officer@tarisa.co.zw / Officer123!
+Citizen: citizen@tarisa.co.zw / Citizen123!
+```
+
+### Test Scenarios
+1. **New Report Flow:** Citizen reports pothole with photo
+2. **Duplicate Detection:** Try reporting same issue twice
+3. **Upvoting:** Multiple users upvote same issue
+4. **Admin Workflow:** Admin verifies, assigns to officer
+5. **Resolution:** Officer marks as resolved, credits awarded
+6. **Map Filtering:** Filter issues by category and status
+
+---
+
+## 11. Special Requirements
+
+### Geospatial Features
+- Use PostGIS for efficient radius queries
+- Implement spatial indexing on location columns
+- Calculate distance between points for duplicate detection
+```sql
+-- Example query for nearby issues
+SELECT * FROM issues 
+WHERE ST_DWithin(
+  location::geography,
+  ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)::geography,
+  50  -- 50 meters
+);
+```
+
+### Security
+- Hash passwords with bcrypt (12 rounds)
+- JWT tokens with 7-day expiry
+- Rate limiting on all API endpoints
+- Input sanitization to prevent SQL injection
+- CORS configuration for web client
+- Secure file upload validation (file type, size)
+
+### Performance
+- Image compression on upload
+- Lazy loading for map markers (cluster when zoomed out)
+- Pagination for lists (20 items per page)
+- Database indexing on frequently queried fields
+- Caching for dashboard statistics (5-minute refresh)
+
+---
+
+## 12. Success Criteria
+
+The app is complete when:
+- ✅ A citizen can register, verify email, and login
+- ✅ A citizen can capture, categorize, and submit an issue with photo
+- ✅ The issue appears on the map with correct location and color
+- ✅ Other users can view and upvote the issue
+- ✅ Duplicate detection prevents same issue being reported twice
+- ✅ Admin can view all issues in dashboard with filters
+- ✅ Admin can assign issues to officers
+- ✅ Admin can update issue status through workflow
+- ✅ Status changes reflect in timeline on issue detail
+- ✅ When issue is resolved, citizen earns 1 CivicCredit
+- ✅ Credit balance displays in wallet
+- ✅ Map heat map shows clustering by category
+- ✅ Web admin is responsive and functional
+- ✅ All forms have proper validation and error handling
+
+---
+
+## 13. Additional Notes
+
+- **Reward System:** Display credits earned but redemption is Phase 2
+- **Multi-sector:** Keep architecture flexible for future modules (Agriculture, Education, Health, Transport)
+- **Localization:** Structure code for easy Shona translation addition
+- **Offline Support:** Consider offline queue for reports (Phase 2)
+- **Accessibility:** Ensure color contrast meets WCAG standards
+
+---
+
+## Start Building!
+
+Focus on Phase 1 MVP first. Build mobile app and web admin concurrently. Test thoroughly with dummy data before connecting real database. Use TypeScript strictly for type safety. Generate clean, documented code with reusable components.
+
+**Remember:** TARISA is for Zimbabwe by Zimbabweans. Build with pride and attention to detail! 🇿🇼
