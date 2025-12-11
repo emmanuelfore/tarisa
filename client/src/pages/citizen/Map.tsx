@@ -86,8 +86,8 @@ export default function CitizenMap() {
                 variant={activeFilter === filter ? "default" : "secondary"}
                 className={`px-4 py-1.5 rounded-full whitespace-nowrap cursor-pointer transition-all shadow-sm ${
                   activeFilter === filter 
-                    ? 'shadow-md scale-105 ring-2 ring-offset-1 ring-primary/20' 
-                    : 'bg-white hover:bg-gray-50'
+                    ? 'shadow-md scale-105 ring-2 ring-offset-1 ring-primary/20 bg-primary text-primary-foreground hover:bg-primary/90' 
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
                 }`}
                 onClick={() => {
                   setActiveFilter(filter);
