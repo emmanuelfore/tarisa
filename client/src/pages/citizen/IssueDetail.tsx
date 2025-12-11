@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { 
   ChevronLeft, 
   MapPin, 
@@ -11,7 +13,8 @@ import {
   ThumbsUp, 
   MessageSquare, 
   Share2,
-  AlertTriangle
+  AlertTriangle,
+  Send
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -29,13 +32,16 @@ const MOCK_ISSUES: Record<string, any> = {
     status: "in_progress",
     date: "2 hours ago",
     upvotes: 24,
-    comments: 3,
     reporter: "Tatenda P.",
     imageUrl: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&q=80&w=800",
     updates: [
       { status: "in_progress", date: "1 hour ago", note: "City of Harare Roads Dept acknowledged receipt. Team dispatched." },
       { status: "verified", date: "1.5 hours ago", note: "Verified by 5 nearby citizens." },
       { status: "submitted", date: "2 hours ago", note: "Report submitted." }
+    ],
+    comments: [
+      { id: 1, user: "John D.", text: "I hit this yesterday! Needs fixing ASAP.", time: "1 hr ago" },
+      { id: 2, user: "Mary K.", text: "Traffic is backed up all the way to 4th street because of this.", time: "30 mins ago" }
     ]
   },
   "2": {
@@ -48,11 +54,13 @@ const MOCK_ISSUES: Record<string, any> = {
     status: "submitted",
     date: "5 hours ago",
     upvotes: 8,
-    comments: 1,
     reporter: "Sarah M.",
     imageUrl: "https://images.unsplash.com/photo-1583329065977-834f828751e0?auto=format&fit=crop&q=80&w=800",
     updates: [
       { status: "submitted", date: "5 hours ago", note: "Report submitted." }
+    ],
+    comments: [
+      { id: 1, user: "Peter Z.", text: "This happens every month in this area.", time: "2 hrs ago" }
     ]
   },
   "3": {
@@ -65,14 +73,14 @@ const MOCK_ISSUES: Record<string, any> = {
     status: "resolved",
     date: "2 days ago",
     upvotes: 45,
-    comments: 12,
     reporter: "James K.",
     imageUrl: null, // No image example
     updates: [
       { status: "resolved", date: "Yesterday", note: "Bulbs replaced and circuit fixed." },
       { status: "in_progress", date: "2 days ago", note: "Maintenance team scheduled." },
       { status: "submitted", date: "3 days ago", note: "Report submitted." }
-    ]
+    ],
+    comments: []
   },
   "4": {
     id: "4",
@@ -84,22 +92,25 @@ const MOCK_ISSUES: Record<string, any> = {
     status: "verified",
     date: "1 week ago",
     upvotes: 12,
-    comments: 0,
     reporter: "Anonymous",
     imageUrl: null,
     updates: [
       { status: "verified", date: "5 days ago", note: "Verified by community leader." },
       { status: "submitted", date: "1 week ago", note: "Report submitted." }
-    ]
+    ],
+    comments: []
   }
 };
 
 export default function IssueDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
+  const [newComment, setNewComment] = useState("");
   
   if (!params?.id) return null;
   
   const issue = MOCK_ISSUES[params.id];
+  // Local state for comments to simulate real-time updates
+  const [comments, setComments] = useState(issue?.comments || []);
 
   if (!issue) {
     return (
@@ -127,6 +138,25 @@ export default function IssueDetail({ params }: { params: { id: string } }) {
     toast({
       title: "Shared",
       description: "Link copied to clipboard.",
+    });
+  };
+
+  const handlePostComment = () => {
+    if (!newComment.trim()) return;
+
+    const comment = {
+      id: Date.now(),
+      user: "Tatenda P.", // Current user
+      text: newComment,
+      time: "Just now"
+    };
+
+    setComments([comment, ...comments]);
+    setNewComment("");
+    
+    toast({
+      title: "Comment Posted",
+      description: "Your comment has been added to the discussion.",
     });
   };
 
@@ -204,7 +234,7 @@ export default function IssueDetail({ params }: { params: { id: string } }) {
           </Button>
           <Button variant="outline" className="flex-1 h-12 gap-2 text-base">
             <MessageSquare size={18} />
-            Comment ({issue.comments})
+            Comment ({comments.length})
           </Button>
         </div>
 
@@ -231,15 +261,46 @@ export default function IssueDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Reporter Info */}
-        <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${issue.reporter}`} />
-            <AvatarFallback>{issue.reporter[0]}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900">Reported by {issue.reporter}</p>
-            <p className="text-xs text-gray-500">Verified Citizen</p>
+        <Separator />
+
+        {/* Comments Section */}
+        <div>
+          <h3 className="font-heading font-semibold text-gray-900 mb-4">Discussion</h3>
+          
+          {/* Comment List */}
+          <div className="space-y-4 mb-6">
+            {comments.map((comment: any) => (
+              <div key={comment.id} className="flex gap-3">
+                <Avatar className="h-8 w-8 mt-1">
+                  <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${comment.user}`} />
+                  <AvatarFallback>{comment.user[0]}</AvatarFallback>
+                </Avatar>
+                <div className="bg-gray-50 rounded-2xl rounded-tl-none p-3 flex-1">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className="font-semibold text-sm text-gray-900">{comment.user}</span>
+                    <span className="text-xs text-gray-400">{comment.time}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{comment.text}</p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <p className="text-center text-gray-400 text-sm py-4">No comments yet. Be the first to discuss.</p>
+            )}
+          </div>
+
+          {/* Add Comment Input */}
+          <div className="flex gap-2 items-end sticky bottom-0 bg-white pt-2 pb-6 border-t border-gray-100 -mx-6 px-6">
+            <Input 
+              placeholder="Add a comment..." 
+              className="bg-gray-50 border-gray-200 focus-visible:ring-primary"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handlePostComment()}
+            />
+            <Button size="icon" className="shrink-0" onClick={handlePostComment} disabled={!newComment.trim()}>
+              <Send size={18} />
+            </Button>
           </div>
         </div>
       </div>
