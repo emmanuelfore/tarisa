@@ -1,11 +1,31 @@
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Settings, LogOut, ChevronRight, Award, History, ShieldCheck } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function CitizenProfile() {
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleAction = (action: string) => {
+    toast({
+      title: action,
+      description: "This feature will be available in the next update.",
+    });
+  };
+
+  const handleLogout = () => {
+    toast({
+      title: "Logging out...",
+      description: "You have been successfully logged out.",
+    });
+    setTimeout(() => setLocation('/'), 1000);
+  };
+
   return (
     <MobileLayout>
       <div className="px-6 pt-12 pb-6">
@@ -42,7 +62,11 @@ export default function CitizenProfile() {
         <div className="space-y-4">
           <h3 className="font-heading font-semibold text-gray-900">Account</h3>
           
-          <Button variant="outline" className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200">
+          <Button 
+            variant="outline" 
+            className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
+            onClick={() => handleAction("History & Activity")}
+          >
             <span className="flex items-center gap-3">
               <History className="text-gray-500" />
               History & Activity
@@ -50,7 +74,11 @@ export default function CitizenProfile() {
             <ChevronRight className="text-gray-400" size={16} />
           </Button>
 
-          <Button variant="outline" className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200">
+          <Button 
+            variant="outline" 
+            className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
+            onClick={() => handleAction("Settings & Preferences")}
+          >
             <span className="flex items-center gap-3">
               <Settings className="text-gray-500" />
               Settings & Preferences
@@ -58,7 +86,11 @@ export default function CitizenProfile() {
             <ChevronRight className="text-gray-400" size={16} />
           </Button>
 
-           <Button variant="outline" className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50">
+           <Button 
+             variant="outline" 
+             className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50 active:scale-[0.98] transition-transform"
+             onClick={handleLogout}
+           >
             <span className="flex items-center gap-3">
               <LogOut />
               Log Out

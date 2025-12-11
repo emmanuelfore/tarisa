@@ -2,7 +2,7 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { IssueCard } from "@/components/shared/IssueCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, ThumbsUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { Link } from "wouter";
 
 export default function CitizenHome() {
   return (
@@ -18,30 +18,38 @@ export default function CitizenHome() {
               <p className="text-primary-foreground/80 text-sm font-medium">Welcome back,</p>
               <h1 className="text-2xl font-heading font-bold text-white">Tatenda</h1>
             </div>
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white font-bold">
-              T
-            </div>
+            <Link href="/citizen/profile">
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white font-bold cursor-pointer hover:bg-white/30 transition-colors">
+                T
+              </div>
+            </Link>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none">
-              <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                <span className="text-2xl font-bold mb-1">12</span>
-                <span className="text-[10px] uppercase tracking-wider opacity-80">Reports</span>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none">
-              <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                <span className="text-2xl font-bold mb-1">450</span>
-                <span className="text-[10px] uppercase tracking-wider opacity-80">Credits</span>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none">
-              <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                <span className="text-2xl font-bold mb-1">5</span>
-                <span className="text-[10px] uppercase tracking-wider opacity-80">Resolved</span>
-              </CardContent>
-            </Card>
+            <Link href="/citizen/report">
+              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
+                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
+                  <span className="text-2xl font-bold mb-1">12</span>
+                  <span className="text-[10px] uppercase tracking-wider opacity-80">Reports</span>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/citizen/credits">
+              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
+                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
+                  <span className="text-2xl font-bold mb-1">450</span>
+                  <span className="text-[10px] uppercase tracking-wider opacity-80">Credits</span>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/citizen/map">
+              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
+                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
+                  <span className="text-2xl font-bold mb-1">5</span>
+                  <span className="text-[10px] uppercase tracking-wider opacity-80">Resolved</span>
+                </CardContent>
+              </Card>
+            </Link>
           </div>
         </div>
       </div>
@@ -51,7 +59,9 @@ export default function CitizenHome() {
         <section>
           <div className="flex justify-between items-end mb-4 px-1">
             <h2 className="text-lg font-heading font-semibold text-gray-800">Nearby Issues</h2>
-            <Button variant="link" className="text-primary h-auto p-0 text-xs">View All</Button>
+            <Link href="/citizen/map">
+              <Button variant="link" className="text-primary h-auto p-0 text-xs">View All</Button>
+            </Link>
           </div>
           
           <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide snap-x">

@@ -3,13 +3,29 @@ import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, MapPin, Navigation } from "lucide-react";
+import { Search, Filter, Navigation } from "lucide-react";
 import mapBg from "@assets/generated_images/map_background_texture.png";
+import { useToast } from "@/hooks/use-toast";
 
 export default function CitizenMap() {
   const [activeFilter, setActiveFilter] = useState('All');
+  const { toast } = useToast();
 
   const filters = ['All', 'Roads', 'Water', 'Sewer', 'Lights', 'Waste'];
+
+  const handleLocationClick = () => {
+    toast({
+      title: "Location Updated",
+      description: "Map centered on your current location: Avondale, Harare",
+    });
+  };
+
+  const handleMarkerClick = (type: string) => {
+    toast({
+      title: "Issue Details",
+      description: `Viewing ${type} issue. Tap to see full report.`,
+    });
+  };
 
   return (
     <MobileLayout>
@@ -52,7 +68,10 @@ export default function CitizenMap() {
 
         {/* Map Markers (Mocked) */}
         {/* Marker 1 - Resolved */}
-        <div className="absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group">
+        <div 
+          className="absolute top-1/3 left-1/4 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+          onClick={() => handleMarkerClick("Resolved")}
+        >
           <div className="w-12 h-12 bg-success/20 rounded-full flex items-center justify-center animate-pulse">
             <div className="w-4 h-4 bg-success rounded-full border-2 border-white shadow-lg group-hover:scale-125 transition-transform" />
           </div>
@@ -62,14 +81,20 @@ export default function CitizenMap() {
         </div>
 
         {/* Marker 2 - Critical */}
-        <div className="absolute top-1/2 left-2/3 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group">
+        <div 
+          className="absolute top-1/2 left-2/3 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+          onClick={() => handleMarkerClick("Critical")}
+        >
           <div className="w-12 h-12 bg-destructive/20 rounded-full flex items-center justify-center animate-pulse">
             <div className="w-4 h-4 bg-destructive rounded-full border-2 border-white shadow-lg group-hover:scale-125 transition-transform" />
           </div>
         </div>
 
         {/* Marker 3 - In Progress */}
-        <div className="absolute bottom-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group">
+        <div 
+          className="absolute bottom-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer group"
+          onClick={() => handleMarkerClick("In Progress")}
+        >
           <div className="w-12 h-12 bg-warning/20 rounded-full flex items-center justify-center animate-pulse">
             <div className="w-4 h-4 bg-warning rounded-full border-2 border-white shadow-lg group-hover:scale-125 transition-transform" />
           </div>
@@ -77,7 +102,11 @@ export default function CitizenMap() {
 
         {/* Current Location FAB */}
         <div className="absolute bottom-6 right-6 z-10">
-          <Button size="icon" className="h-12 w-12 rounded-full shadow-xl bg-white text-primary hover:bg-gray-50">
+          <Button 
+            size="icon" 
+            className="h-12 w-12 rounded-full shadow-xl bg-white text-primary hover:bg-gray-50 active:scale-95 transition-transform"
+            onClick={handleLocationClick}
+          >
             <Navigation size={24} className="fill-current" />
           </Button>
         </div>
