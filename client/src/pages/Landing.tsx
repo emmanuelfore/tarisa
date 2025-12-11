@@ -46,15 +46,6 @@ export default function Landing() {
             </div>
           </Link>
 
-          {/* Signup Link (Quick Action) */}
-          <Link href="/signup">
-             <div className="md:col-span-2 text-center mt-4">
-               <Button variant="link" className="text-gray-500 hover:text-primary">
-                 New user? Create an account
-               </Button>
-             </div>
-          </Link>
-
           {/* Admin Dashboard Option */}
           <Link href="/admin/dashboard">
             <div className="group relative bg-white border border-gray-200 hover:border-secondary/50 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all cursor-pointer text-left overflow-hidden">
@@ -73,6 +64,15 @@ export default function Landing() {
           </Link>
         </div>
 
+        {/* Signup Link (Quick Action) */}
+        <Link href="/signup">
+           <div className="md:col-span-2 text-center mt-8">
+             <Button variant="link" className="text-gray-500 hover:text-primary">
+               New user? Create an account
+             </Button>
+           </div>
+        </Link>
+        
         <div className="mt-16 flex items-center gap-2 text-sm text-gray-400">
           <ShieldCheck size={16} />
           <span>Secure • Verified • Official Partner of City of Harare</span>
