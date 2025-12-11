@@ -1,4 +1,3 @@
-import { useRoute } from "wouter";
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +11,7 @@ import {
   ThumbsUp, 
   MessageSquare, 
   Share2,
-  AlertTriangle,
-  CheckCircle2
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -96,11 +94,10 @@ const MOCK_ISSUES: Record<string, any> = {
   }
 };
 
-export default function IssueDetail() {
-  const [match, params] = useRoute("/citizen/issue/:id");
+export default function IssueDetail({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   
-  if (!match || !params?.id) return null;
+  if (!params?.id) return null;
   
   const issue = MOCK_ISSUES[params.id];
 
@@ -151,10 +148,8 @@ export default function IssueDetail() {
         
         {/* Navigation Header Overlay */}
         <div className="absolute top-0 left-0 right-0 p-4 pt-safe flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
-          <Link href="/citizen/home">
-            <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 text-white shadow-lg">
-              <ChevronLeft size={24} />
-            </Button>
+          <Link href="/citizen/home" className="h-10 w-10 flex items-center justify-center rounded-full bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 text-white shadow-lg transition-colors">
+             <ChevronLeft size={24} />
           </Link>
           <Button variant="secondary" size="icon" className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 text-white shadow-lg" onClick={handleShare}>
             <Share2 size={20} />

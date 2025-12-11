@@ -33,59 +33,49 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          <Link href="/admin/dashboard">
-            <a className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          <Link href="/admin/dashboard" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               isActive("/admin/dashboard") 
                 ? "bg-primary/10 text-primary" 
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-              <LayoutDashboard size={20} />
-              Dashboard
-            </a>
+            <LayoutDashboard size={20} />
+            Dashboard
           </Link>
 
-          <Link href="/admin/reports">
-            <a className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          <Link href="/admin/reports" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               isActive("/admin/reports") 
                 ? "bg-primary/10 text-primary" 
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-              <FileText size={20} />
-              Reports
-            </a>
+            <FileText size={20} />
+            Reports
           </Link>
 
-          <Link href="/admin/map">
-            <a className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          <Link href="/admin/map" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               isActive("/admin/map") 
                 ? "bg-primary/10 text-primary" 
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-              <MapIcon size={20} />
-              Live Map
-            </a>
+            <MapIcon size={20} />
+            Live Map
           </Link>
 
-          <Link href="/admin/users">
-            <a className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          <Link href="/admin/users" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               isActive("/admin/users") 
                 ? "bg-primary/10 text-primary" 
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-              <Users size={20} />
-              User Management
-            </a>
+            <Users size={20} />
+            User Management
           </Link>
 
-          <Link href="/admin/settings">
-            <a className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+          <Link href="/admin/settings" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
               isActive("/admin/settings") 
                 ? "bg-primary/10 text-primary" 
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
             }`}>
-              <Settings size={20} />
-              Settings
-            </a>
+            <Settings size={20} />
+            Settings
           </Link>
         </nav>
 
