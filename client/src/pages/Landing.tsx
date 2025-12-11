@@ -37,11 +37,22 @@ export default function Landing() {
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Citizen App</h3>
                 <p className="text-gray-500 text-sm mb-4">Report issues, track progress, and earn CivicCredits.</p>
-                <div className="flex items-center text-primary font-medium text-sm group-hover:translate-x-2 transition-transform">
-                  Launch App <ArrowRight size={16} className="ml-2" />
+                <div className="flex gap-3">
+                  <div className="flex items-center text-primary font-medium text-sm group-hover:translate-x-2 transition-transform">
+                    Launch App <ArrowRight size={16} className="ml-2" />
+                  </div>
                 </div>
               </div>
             </div>
+          </Link>
+
+          {/* Signup Link (Quick Action) */}
+          <Link href="/signup">
+             <div className="md:col-span-2 text-center mt-4">
+               <Button variant="link" className="text-gray-500 hover:text-primary">
+                 New user? Create an account
+               </Button>
+             </div>
           </Link>
 
           {/* Admin Dashboard Option */}

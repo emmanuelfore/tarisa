@@ -12,7 +12,9 @@ import CitizenMap from "@/pages/citizen/Map";
 import ReportIssue from "@/pages/citizen/Report";
 import CitizenProfile from "@/pages/citizen/Profile";
 import IssueDetail from "@/pages/citizen/IssueDetail";
+import CitizenCredits from "@/pages/citizen/Credits";
 import AdminDashboard from "@/pages/admin/Dashboard";
+import Signup from "@/pages/auth/Signup";
 
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
   useEffect(() => {
@@ -42,13 +44,15 @@ function Router() {
       {/* Default redirect to app home */}
       <Route path="/" component={CitizenHome} />
       
+      <Route path="/signup" component={Signup} />
+      
       {/* Citizen Routes */}
       <Route path="/citizen/home" component={CitizenHome} />
       <Route path="/citizen/map" component={CitizenMap} />
       <Route path="/citizen/report" component={ReportIssue} />
       <Route path="/citizen/issue/:id" component={IssueDetail} />
       <Route path="/citizen/profile" component={CitizenProfile} />
-      <Route path="/citizen/credits" component={CitizenProfile} /> 
+      <Route path="/citizen/credits" component={CitizenCredits} /> 
 
       {/* Admin Routes - hidden from main flow but accessible */}
       <Route path="/admin/dashboard" component={AdminDashboard} />
