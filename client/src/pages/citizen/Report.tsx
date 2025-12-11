@@ -1,22 +1,10 @@
 import { useState } from "react";
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import {
-  Camera,
-  MapPin,
-  AlertTriangle,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Upload
-} from "lucide-react";
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image } from "react-native-web";
+import { Camera, MapPin, ChevronLeft, ChevronRight, Upload, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
+import { theme } from "@/theme";
 
 const CATEGORIES = [
   { id: 'roads', label: 'Roads', icon: '🚧' },
@@ -53,167 +41,420 @@ export default function ReportIssue() {
   return (
     <MobileLayout showNav={false}>
       {/* Header */}
-      <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={() => step === 1 ? setLocation('/citizen/home') : prevStep()}>
-          <ChevronLeft />
-        </Button>
-        <span className="font-heading font-semibold text-lg">Report Issue</span>
-        <div className="w-10 text-center text-sm font-medium text-gray-500">
-          {step}/4
-        </div>
-      </div>
+      <View style={styles.header}>
+        <TouchableOpacity 
+          onPress={() => step === 1 ? setLocation('/citizen/home') : prevStep()}
+          style={styles.backButton}
+        >
+          <ChevronLeft size={24} color={theme.colors.gray800} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Report Issue</Text>
+        <Text style={styles.stepIndicator}>{step}/4</Text>
+      </View>
 
-      <div className="p-6">
-        {/* Progress Bar */}
-        <div className="w-full bg-gray-100 h-1.5 rounded-full mb-8 overflow-hidden">
-          <div 
-            className="bg-primary h-full transition-all duration-300 ease-out"
-            style={{ width: `${(step / 4) * 100}%` }}
-          />
-        </div>
+      <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBar, { width: `${(step / 4) * 100}%` }]} />
+      </View>
 
+      <ScrollView contentContainerStyle={styles.content}>
         {/* Step 1: Photo */}
         {step === 1 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-            <div className="text-center space-y-2">
-              <h2 className="text-2xl font-heading font-bold text-gray-900">Snap a Photo</h2>
-              <p className="text-gray-500">Take a clear picture of the issue to help us locate and fix it.</p>
-            </div>
+          <View style={styles.stepContainer}>
+            <View style={styles.textCenter}>
+              <Text style={styles.heading}>Snap a Photo</Text>
+              <Text style={styles.subheading}>Take a clear picture of the issue to help us locate and fix it.</Text>
+            </View>
 
-            <div className="aspect-[4/3] bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors">
-              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm">
-                <Camera size={32} className="text-primary" />
-              </div>
-              <span className="text-sm font-medium text-gray-500">Tap to take photo</span>
-            </div>
+            <TouchableOpacity style={styles.cameraBox}>
+              <View style={styles.cameraIconCircle}>
+                <Camera size={32} color={theme.colors.primary} />
+              </View>
+              <Text style={styles.cameraText}>Tap to take photo</Text>
+            </TouchableOpacity>
 
-            <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="h-12">
-                <Upload className="mr-2 h-4 w-4" /> Gallery
-              </Button>
-              <Button className="h-12" onClick={nextStep}>
-                Skip Photo
-              </Button>
-            </div>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={[styles.button, styles.outlineButton]} onPress={() => {}}>
+                <Upload size={16} color={theme.colors.gray800} style={{ marginRight: 8 }} />
+                <Text style={styles.outlineButtonText}>Gallery</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.primaryButton]} onPress={nextStep}>
+                <Text style={styles.primaryButtonText}>Skip Photo</Text>
+              </TouchableOpacity>
+            </View>
             
-            <Button className="w-full h-12 text-lg" onClick={nextStep}>
-              Next Step <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+            <TouchableOpacity style={[styles.button, styles.primaryButton, { width: '100%', marginTop: 24 }]} onPress={nextStep}>
+              <Text style={styles.primaryButtonText}>Next Step</Text>
+              <ChevronRight size={16} color="white" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Step 2: Location */}
         {step === 2 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-heading font-bold text-gray-900">Confirm Location</h2>
-              <p className="text-gray-500">We detected your location automatically. Is this correct?</p>
-            </div>
+          <View style={styles.stepContainer}>
+             <View style={styles.textCenter}>
+              <Text style={styles.heading}>Confirm Location</Text>
+              <Text style={styles.subheading}>We detected your location automatically. Is this correct?</Text>
+            </View>
 
-            <div className="aspect-video bg-gray-200 rounded-2xl relative overflow-hidden">
+            <View style={styles.mapPreview}>
                {/* Mock Map View */}
-               <div className="absolute inset-0 bg-gray-300 flex items-center justify-center">
-                 <MapPin size={48} className="text-primary animate-bounce" />
-               </div>
-               <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur rounded-lg p-3 text-sm font-medium shadow-sm">
-                 123 Samora Machel Avenue, Harare
-               </div>
-            </div>
+               <View style={styles.mapPlaceholder}>
+                 <MapPin size={48} color={theme.colors.primary} />
+               </View>
+               <View style={styles.locationCard}>
+                 <Text style={styles.locationText}>123 Samora Machel Avenue, Harare</Text>
+               </View>
+            </View>
 
-            <Button variant="outline" className="w-full h-12">
-              <MapPin className="mr-2 h-4 w-4" /> Adjust Pin Manually
-            </Button>
+            <TouchableOpacity style={[styles.button, styles.outlineButton, { width: '100%' }]} onPress={() => {}}>
+              <MapPin size={16} color={theme.colors.gray800} style={{ marginRight: 8 }} />
+              <Text style={styles.outlineButtonText}>Adjust Pin Manually</Text>
+            </TouchableOpacity>
 
-            <Button className="w-full h-12 text-lg" onClick={nextStep}>
-              Confirm Location <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+            <TouchableOpacity style={[styles.button, styles.primaryButton, { width: '100%', marginTop: 16 }]} onPress={nextStep}>
+              <Text style={styles.primaryButtonText}>Confirm Location</Text>
+              <ChevronRight size={16} color="white" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Step 3: Details */}
         {step === 3 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-heading font-bold text-gray-900">Issue Details</h2>
-              <p className="text-gray-500">Categorize the problem so we send the right team.</p>
-            </div>
+          <View style={styles.stepContainer}>
+             <View style={styles.textCenter}>
+              <Text style={styles.heading}>Issue Details</Text>
+              <Text style={styles.subheading}>Categorize the problem so we send the right team.</Text>
+            </View>
 
-            <div className="grid grid-cols-2 gap-3">
+            <View style={styles.grid}>
               {CATEGORIES.map(cat => (
-                <button 
+                <TouchableOpacity 
                   key={cat.id}
-                  className="flex flex-col items-center justify-center p-4 rounded-xl border border-gray-200 bg-white hover:border-primary/50 hover:bg-primary/5 focus:ring-2 focus:ring-primary focus:outline-none transition-all active:scale-95"
+                  style={styles.categoryCard}
                 >
-                  <span className="text-3xl mb-2">{cat.icon}</span>
-                  <span className="text-sm font-medium text-gray-700">{cat.label}</span>
-                </button>
+                  <Text style={styles.categoryIcon}>{cat.icon}</Text>
+                  <Text style={styles.categoryLabel}>{cat.label}</Text>
+                </TouchableOpacity>
               ))}
-            </div>
+            </View>
 
-            <div className="space-y-3">
-              <Label>Severity Level</Label>
-              <div className="pt-2 px-2">
-                <Slider defaultValue={[33]} max={100} step={33} />
-                <div className="flex justify-between text-xs text-gray-500 mt-2 font-medium">
-                  <span>Low</span>
-                  <span>Medium</span>
-                  <span>High</span>
-                  <span className="text-destructive">Critical</span>
-                </div>
-              </div>
-            </div>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Severity Level</Text>
+              <View style={styles.sliderPlaceholder}>
+                 <View style={styles.sliderTrack} />
+                 <View style={styles.sliderThumb} />
+              </View>
+              <View style={styles.sliderLabels}>
+                <Text style={styles.sliderLabelText}>Low</Text>
+                <Text style={styles.sliderLabelText}>Medium</Text>
+                <Text style={styles.sliderLabelText}>High</Text>
+                <Text style={[styles.sliderLabelText, { color: theme.colors.danger }]}>Critical</Text>
+              </View>
+            </View>
 
-            <Button className="w-full h-12 text-lg mt-4" onClick={nextStep}>
-              Next Step <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+            <TouchableOpacity style={[styles.button, styles.primaryButton, { width: '100%', marginTop: 24 }]} onPress={nextStep}>
+              <Text style={styles.primaryButtonText}>Next Step</Text>
+              <ChevronRight size={16} color="white" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Step 4: Review */}
         {step === 4 && (
-          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-heading font-bold text-gray-900">Review Report</h2>
-              <p className="text-gray-500">Check if everything looks correct before submitting.</p>
-            </div>
+          <View style={styles.stepContainer}>
+             <View style={styles.textCenter}>
+              <Text style={styles.heading}>Review Report</Text>
+              <Text style={styles.subheading}>Check if everything looks correct before submitting.</Text>
+            </View>
 
-            <Card className="bg-gray-50 border-gray-200">
-              <CardContent className="p-4 space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 bg-gray-200 rounded-lg shrink-0 overflow-hidden">
-                    {/* Placeholder for captured image */}
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Pothole Repair</h3>
-                    <p className="text-sm text-gray-500">Roads • High Severity</p>
-                    <p className="text-xs text-gray-400 mt-1">123 Samora Machel Ave</p>
-                  </div>
-                </div>
-                
-                <div className="border-t border-gray-200 pt-3">
-                  <Label className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">Description</Label>
-                  <Textarea placeholder="Add more details (optional)..." className="bg-white" />
-                </div>
-              </CardContent>
-            </Card>
+            <View style={styles.reviewCard}>
+              <View style={styles.reviewHeader}>
+                <View style={styles.reviewImagePlaceholder} />
+                <View style={styles.reviewInfo}>
+                  <Text style={styles.reviewTitle}>Pothole Repair</Text>
+                  <Text style={styles.reviewSubtitle}>Roads • High Severity</Text>
+                  <Text style={styles.reviewLocation}>123 Samora Machel Ave</Text>
+                </View>
+              </View>
+              
+              <View style={styles.reviewDivider} />
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>DESCRIPTION</Text>
+                <TextInput 
+                  placeholder="Add more details (optional)..." 
+                  style={styles.textArea} 
+                  multiline 
+                  numberOfLines={3}
+                />
+              </View>
+            </View>
 
-            <div className="bg-blue-50 text-blue-800 p-4 rounded-xl flex gap-3 text-sm">
-              <AlertTriangle className="shrink-0 h-5 w-5" />
-              <p>We checked for duplicates and found no similar reports in this area. You're good to go!</p>
-            </div>
-
-            <Button className="w-full h-14 text-lg bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" onClick={handleSubmit} disabled={loading}>
+            <TouchableOpacity style={[styles.button, styles.primaryButton, { width: '100%', height: 56, marginTop: 24 }]} onPress={handleSubmit} disabled={loading}>
               {loading ? (
-                "Submitting..."
+                <Text style={styles.primaryButtonText}>Submitting...</Text>
               ) : (
                 <>
-                  Submit Report <CheckCircle2 className="ml-2 h-5 w-5" />
+                  <Text style={styles.primaryButtonText}>Submit Report</Text>
+                  <CheckCircle2 size={20} color="white" style={{ marginLeft: 8 }} />
                 </>
               )}
-            </Button>
-          </div>
+            </TouchableOpacity>
+          </View>
         )}
-      </div>
+      </ScrollView>
     </MobileLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.gray100,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.gray900,
+  },
+  stepIndicator: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray500,
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: theme.colors.gray100,
+    width: '100%',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+  },
+  content: {
+    padding: 24,
+  },
+  stepContainer: {
+    gap: 24,
+  },
+  textCenter: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.gray900,
+    marginBottom: 8,
+  },
+  subheading: {
+    fontSize: 14,
+    color: theme.colors.gray500,
+    textAlign: 'center',
+  },
+  cameraBox: {
+    aspectRatio: 4/3,
+    backgroundColor: theme.colors.gray100,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.gray300,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  cameraIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.sm,
+  },
+  cameraText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray500,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  button: {
+    height: 48,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  outlineButton: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+    flex: 1,
+  },
+  primaryButton: {
+    backgroundColor: theme.colors.primary,
+    flex: 1,
+  },
+  outlineButtonText: {
+    color: theme.colors.gray900,
+    fontWeight: '500',
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  mapPreview: {
+    aspectRatio: 16/9,
+    backgroundColor: theme.colors.gray200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  mapPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.gray300,
+  },
+  locationCard: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    padding: 12,
+    borderRadius: 8,
+    ...theme.shadows.sm,
+  },
+  locationText: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  categoryCard: {
+    width: '48%',
+    aspectRatio: 1,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  categoryIcon: {
+    fontSize: 32,
+  },
+  categoryLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray800,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray900,
+  },
+  sliderPlaceholder: {
+    height: 40,
+    justifyContent: 'center',
+  },
+  sliderTrack: {
+    height: 4,
+    backgroundColor: theme.colors.gray200,
+    borderRadius: 2,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    left: '33%',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    ...theme.shadows.sm,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sliderLabelText: {
+    fontSize: 12,
+    color: theme.colors.gray500,
+    fontWeight: '500',
+  },
+  reviewCard: {
+    backgroundColor: theme.colors.gray100,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  reviewImagePlaceholder: {
+    width: 64,
+    height: 64,
+    backgroundColor: theme.colors.gray300,
+    borderRadius: 8,
+  },
+  reviewInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  reviewTitle: {
+    fontWeight: '500',
+    fontSize: 16,
+    color: theme.colors.gray900,
+  },
+  reviewSubtitle: {
+    fontSize: 14,
+    color: theme.colors.gray500,
+  },
+  reviewLocation: {
+    fontSize: 12,
+    color: theme.colors.gray400,
+    marginTop: 4,
+  },
+  reviewDivider: {
+    height: 1,
+    backgroundColor: theme.colors.gray200,
+    marginVertical: 12,
+  },
+  textArea: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 12,
+    height: 80,
+    textAlignVertical: 'top',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+    outlineStyle: 'none',
+  },
+});

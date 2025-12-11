@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
+import { View, StyleSheet, Platform, ViewStyle } from "react-native-web";
 import { BottomNav } from "../shared/BottomNav";
+import { theme } from "@/theme";
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -8,29 +10,102 @@ interface MobileLayoutProps {
 
 export function MobileLayout({ children, showNav = true }: MobileLayoutProps) {
   return (
-    <div className="min-h-screen bg-gray-900 flex justify-center items-center p-0 md:p-8">
+    <View style={styles.container}>
       {/* Phone Frame for Desktop */}
-      <div className="w-full h-full md:w-[375px] md:h-[812px] bg-white md:rounded-[3rem] shadow-2xl relative flex flex-col overflow-hidden border-[8px] border-gray-900">
+      <View style={styles.phoneFrame}>
         
-        {/* Notch (Visual only) */}
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-40 h-6 bg-gray-900 rounded-b-2xl z-50 hidden md:block" />
+        {/* Notch (Visual only - Web only) */}
+        <View style={styles.notch} />
 
         {/* Status Bar Area */}
-        <div className="h-12 w-full bg-white/90 backdrop-blur-sm fixed top-0 left-0 z-40 md:absolute shrink-0" />
+        <View style={styles.statusBar} />
 
-        <main className={`flex-1 overflow-y-auto scrollbar-hide pt-8 ${showNav ? 'pb-20' : ''}`}>
+        <View style={[styles.content, showNav && { paddingBottom: 80 }]}>
           {children}
-        </main>
+        </View>
         
         {showNav && (
-          <div className="absolute bottom-0 left-0 right-0 z-50">
+          <View style={styles.bottomNavContainer}>
             <BottomNav />
-          </div>
+          </View>
         )}
         
         {/* Home Indicator */}
-        <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gray-900/20 rounded-full z-50 hidden md:block pointer-events-none" />
-      </div>
-    </div>
+        <View style={styles.homeIndicator} />
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.gray900,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Platform.OS === 'web' ? 32 : 0,
+    height: '100vh', // Ensure full height on web
+  },
+  phoneFrame: {
+    width: '100%',
+    height: '100%',
+    maxWidth: 375,
+    maxHeight: 812,
+    backgroundColor: theme.colors.background,
+    borderRadius: 48,
+    overflow: 'hidden',
+    borderWidth: 8,
+    borderColor: theme.colors.gray900,
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.5,
+    shadowRadius: 40,
+  },
+  notch: {
+    position: 'absolute',
+    top: 0,
+    left: '50%',
+    transform: [{ translateX: '-50%' }],
+    width: 160,
+    height: 24,
+    backgroundColor: theme.colors.gray900,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    zIndex: 50,
+  },
+  statusBar: {
+    height: 44, // Standard iOS status bar height
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    zIndex: 40,
+    position: 'absolute',
+    top: 0,
+  },
+  content: {
+    flex: 1,
+    paddingTop: 44, // Push content below status bar
+    overflowY: 'auto', // Web scrolling
+    overflowX: 'hidden',
+  },
+  bottomNavContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 50,
+  },
+  homeIndicator: {
+    position: 'absolute',
+    bottom: 8,
+    left: '50%',
+    transform: [{ translateX: '-50%' }],
+    width: 120,
+    height: 4,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 2,
+    zIndex: 50,
+  },
+});

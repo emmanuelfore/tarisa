@@ -1,71 +1,66 @@
 import { MobileLayout } from "@/components/layout/MobileLayout";
 import { IssueCard } from "@/components/shared/IssueCard";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native-web";
 import { Link } from "wouter";
+import { theme } from "@/theme";
 
 export default function CitizenHome() {
   return (
     <MobileLayout>
       {/* Header */}
-      <div className="bg-primary pt-12 pb-24 px-6 rounded-b-[2.5rem] shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-8 -mb-8" />
+      <View style={styles.header}>
+        {/* Decorative Circles */}
+        <View style={styles.decoCircle1} />
+        <View style={styles.decoCircle2} />
         
-        <div className="relative z-10">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <p className="text-primary-foreground/80 text-sm font-medium">Welcome back,</p>
-              <h1 className="text-2xl font-heading font-bold text-white">Tatenda</h1>
-            </div>
+        <View style={styles.headerContent}>
+          <View style={styles.topRow}>
+            <View>
+              <Text style={styles.welcomeText}>Welcome back,</Text>
+              <Text style={styles.nameText}>Tatenda</Text>
+            </View>
             <Link href="/citizen/profile">
-              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white font-bold cursor-pointer hover:bg-white/30 transition-colors">
-                T
-              </div>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>T</Text>
+              </View>
             </Link>
-          </div>
+          </View>
 
-          <div className="grid grid-cols-3 gap-3">
+          <View style={styles.statsRow}>
             <Link href="/citizen/report">
-              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
-                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                  <span className="text-2xl font-bold mb-1">12</span>
-                  <span className="text-[10px] uppercase tracking-wider opacity-80">Reports</span>
-                </CardContent>
-              </Card>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statLabel}>Reports</Text>
+              </View>
             </Link>
             <Link href="/citizen/credits">
-              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
-                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                  <span className="text-2xl font-bold mb-1">450</span>
-                  <span className="text-[10px] uppercase tracking-wider opacity-80">Credits</span>
-                </CardContent>
-              </Card>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>450</Text>
+                <Text style={styles.statLabel}>Credits</Text>
+              </View>
             </Link>
             <Link href="/citizen/map">
-              <Card className="bg-white/10 border-white/20 backdrop-blur-md shadow-none cursor-pointer hover:bg-white/20 transition-colors active:scale-95">
-                <CardContent className="p-3 flex flex-col items-center justify-center text-white text-center">
-                  <span className="text-2xl font-bold mb-1">5</span>
-                  <span className="text-[10px] uppercase tracking-wider opacity-80">Resolved</span>
-                </CardContent>
-              </Card>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>5</Text>
+                <Text style={styles.statLabel}>Resolved</Text>
+              </View>
             </Link>
-          </div>
-        </div>
-      </div>
+          </View>
+        </View>
+      </View>
 
-      <div className="px-6 -mt-12 relative z-20 space-y-8 pb-8">
+      <View style={styles.mainContent}>
         {/* Nearby Issues Carousel */}
-        <section>
-          <div className="flex justify-between items-end mb-4 px-1">
-            <h2 className="text-lg font-heading font-semibold text-gray-800">Nearby Issues</h2>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Nearby Issues</Text>
             <Link href="/citizen/map">
-              <Button variant="link" className="text-primary h-auto p-0 text-xs">View All</Button>
+              <Text style={styles.linkText}>View All</Text>
             </Link>
-          </div>
+          </View>
           
-          <div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 scrollbar-hide snap-x">
-            <div className="w-[280px] shrink-0 snap-center">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carousel} contentContainerStyle={styles.carouselContent}>
+            <View style={styles.carouselItem}>
               <IssueCard 
                 id="1"
                 category="Roads"
@@ -76,8 +71,8 @@ export default function CitizenHome() {
                 date="2 hrs ago"
                 distance="0.3km"
               />
-            </div>
-            <div className="w-[280px] shrink-0 snap-center">
+            </View>
+            <View style={styles.carouselItem}>
               <IssueCard 
                 id="2"
                 category="Water"
@@ -88,14 +83,14 @@ export default function CitizenHome() {
                 date="5 hrs ago"
                 distance="0.8km"
               />
-            </div>
-          </div>
-        </section>
+            </View>
+          </ScrollView>
+        </View>
 
         {/* My Recent Reports */}
-        <section>
-          <h2 className="text-lg font-heading font-semibold text-gray-800 mb-4 px-1">My Recent Reports</h2>
-          <div className="space-y-4">
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>My Recent Reports</Text>
+          <View style={styles.list}>
              <IssueCard 
                 id="3"
                 category="Street Lights"
@@ -112,9 +107,144 @@ export default function CitizenHome() {
                 upvotes={12}
                 date="1 week ago"
               />
-          </div>
-        </section>
-      </div>
+          </View>
+        </View>
+      </View>
     </MobileLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: theme.colors.primary,
+    paddingTop: 48,
+    paddingBottom: 96,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    position: 'relative',
+    overflow: 'hidden',
+    ...theme.shadows.md,
+  },
+  decoCircle1: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  decoCircle2: {
+    position: 'absolute',
+    bottom: -32,
+    left: -32,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  headerContent: {
+    zIndex: 10,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  welcomeText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  nameText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    fontFamily: 'sans-serif', // Fallback
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backdropFilter: 'blur(4px)',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(8px)',
+  },
+  statValue: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    fontWeight: '600',
+  },
+  mainContent: {
+    marginTop: -48,
+    paddingHorizontal: 24,
+    zIndex: 20,
+    paddingBottom: 24,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.gray800,
+  },
+  linkText: {
+    color: theme.colors.primary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  carousel: {
+    marginHorizontal: -24,
+  },
+  carouselContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 4,
+    gap: 16,
+  },
+  carouselItem: {
+    width: 280,
+  },
+  list: {
+    gap: 16,
+  }
+});

@@ -1,83 +1,234 @@
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Dimensions } from "react-native-web";
 import { ArrowRight, Smartphone, LayoutDashboard, ShieldCheck } from "lucide-react";
 import appIcon from "@assets/generated_images/app_icon_for_tarisa.png";
+import { theme } from "@/theme";
 
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <ScrollView contentContainerStyle={styles.container}>
       {/* Background decoration */}
-      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-primary/10 to-transparent -z-10" />
-      <div className="absolute -top-20 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
+      <View style={styles.bgGradient} />
+      <View style={styles.bgCircleTop} />
+      <View style={styles.bgCircleBottom} />
 
-      <div className="max-w-4xl w-full flex flex-col items-center text-center animate-in fade-in zoom-in duration-500">
-        <div className="mb-8 relative">
-          <div className="w-24 h-24 bg-white rounded-3xl shadow-xl flex items-center justify-center p-4 transform rotate-3 hover:rotate-0 transition-transform duration-300">
-            <img src={appIcon} alt="Tarisa Logo" className="w-full h-full object-contain" />
-          </div>
-        </div>
+      <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <View style={styles.logoBox}>
+            <Image source={{ uri: appIcon }} style={styles.logo} resizeMode="contain" />
+          </View>
+        </View>
 
-        <h1 className="text-5xl md:text-7xl font-heading font-bold text-gray-900 mb-4 tracking-tight">
-          TARISA
-        </h1>
-        <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-2xl font-light">
-          "See It. Snap It. Solve It." <br/>
-          <span className="text-base text-gray-500 mt-2 block">The next-generation civic reporting platform for Zimbabwe.</span>
-        </p>
+        <Text style={styles.title}>TARISA</Text>
+        
+        <Text style={styles.subtitle}>
+          "See It. Snap It. Solve It."
+        </Text>
+        <Text style={styles.description}>
+          The next-generation civic reporting platform for Zimbabwe.
+        </Text>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+        <View style={styles.cardContainer}>
           {/* Citizen App Option */}
           <Link href="/citizen/home">
-            <div className="group relative bg-white border border-gray-200 hover:border-primary/50 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all cursor-pointer text-left overflow-hidden">
-              <div className="absolute inset-0 bg-primary/5 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-              <div className="relative z-10">
-                <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Smartphone size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Citizen App</h3>
-                <p className="text-gray-500 text-sm mb-4">Report issues, track progress, and earn CivicCredits.</p>
-                <div className="flex gap-3">
-                  <div className="flex items-center text-primary font-medium text-sm group-hover:translate-x-2 transition-transform">
-                    Launch App <ArrowRight size={16} className="ml-2" />
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TouchableOpacity style={styles.card}>
+              <View style={styles.cardIconBox}>
+                <Smartphone size={24} color={theme.colors.primary} />
+              </View>
+              <Text style={styles.cardTitle}>Citizen App</Text>
+              <Text style={styles.cardDescription}>Report issues, track progress, and earn CivicCredits.</Text>
+              <View style={styles.cardLink}>
+                <Text style={styles.cardLinkText}>Launch App</Text>
+                <ArrowRight size={16} color={theme.colors.primary} />
+              </View>
+            </TouchableOpacity>
           </Link>
 
-          {/* Signup Link (Quick Action) */}
+          {/* Signup Link */}
           <Link href="/signup">
-             <div className="md:col-span-2 text-center mt-4">
-               <Button variant="link" className="text-gray-500 hover:text-primary">
-                 New user? Create an account
-               </Button>
-             </div>
+            <TouchableOpacity style={styles.signupLink}>
+              <Text style={styles.signupText}>New user? Create an account</Text>
+            </TouchableOpacity>
           </Link>
 
           {/* Admin Dashboard Option */}
           <Link href="/admin/dashboard">
-            <div className="group relative bg-white border border-gray-200 hover:border-secondary/50 p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all cursor-pointer text-left overflow-hidden">
-               <div className="absolute inset-0 bg-secondary/5 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-               <div className="relative z-10">
-                <div className="w-12 h-12 bg-secondary/10 text-secondary rounded-xl flex items-center justify-center mb-4 group-hover:bg-secondary group-hover:text-white transition-colors">
-                  <LayoutDashboard size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Admin Dashboard</h3>
-                <p className="text-gray-500 text-sm mb-4">Manage reports, assign teams, and analyze city data.</p>
-                <div className="flex items-center text-secondary font-medium text-sm group-hover:translate-x-2 transition-transform">
-                  Access Portal <ArrowRight size={16} className="ml-2" />
-                </div>
-              </div>
-            </div>
+            <TouchableOpacity style={[styles.card, styles.adminCard]}>
+              <View style={styles.cardIconBoxAdmin}>
+                <LayoutDashboard size={24} color={theme.colors.secondary} />
+              </View>
+              <Text style={styles.cardTitle}>Admin Dashboard</Text>
+              <Text style={styles.cardDescription}>Manage reports, assign teams, and analyze city data.</Text>
+              <View style={styles.cardLink}>
+                <Text style={styles.cardLinkTextAdmin}>Access Portal</Text>
+                <ArrowRight size={16} color={theme.colors.secondary} />
+              </View>
+            </TouchableOpacity>
           </Link>
-        </div>
+        </View>
 
-        <div className="mt-16 flex items-center gap-2 text-sm text-gray-400">
-          <ShieldCheck size={16} />
-          <span>Secure • Verified • Official Partner of City of Harare</span>
-        </div>
-      </div>
-    </div>
+        <View style={styles.footer}>
+          <ShieldCheck size={16} color={theme.colors.gray400} />
+          <Text style={styles.footerText}>Secure • Verified • Official Partner of City of Harare</Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    backgroundColor: 'white',
+    alignItems: 'center',
+    padding: 24,
+    minHeight: '100vh',
+    justifyContent: 'center',
+  },
+  bgGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    backgroundColor: 'rgba(46, 125, 50, 0.05)', // primary/5
+  },
+  bgCircleTop: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 384,
+    height: 384,
+    borderRadius: 192,
+    backgroundColor: 'rgba(46, 125, 50, 0.05)',
+  },
+  bgCircleBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: 384,
+    height: 384,
+    borderRadius: 192,
+    backgroundColor: 'rgba(245, 124, 0, 0.05)', // secondary/5
+  },
+  content: {
+    maxWidth: 600,
+    width: '100%',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    marginBottom: 32,
+  },
+  logoBox: {
+    width: 96,
+    height: 96,
+    backgroundColor: 'white',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.lg,
+    padding: 16,
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
+  },
+  title: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: theme.colors.gray900,
+    marginBottom: 16,
+    letterSpacing: -1,
+  },
+  subtitle: {
+    fontSize: 24,
+    color: theme.colors.textSecondary,
+    marginBottom: 8,
+    textAlign: 'center',
+    fontWeight: '300',
+  },
+  description: {
+    fontSize: 16,
+    color: theme.colors.gray400,
+    marginBottom: 48,
+    textAlign: 'center',
+  },
+  cardContainer: {
+    width: '100%',
+    gap: 24,
+  },
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 32,
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+    ...theme.shadows.sm,
+  },
+  adminCard: {
+    borderColor: theme.colors.gray200,
+  },
+  cardIconBox: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  cardIconBoxAdmin: {
+    width: 48,
+    height: 48,
+    backgroundColor: 'rgba(245, 124, 0, 0.1)',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.gray900,
+    marginBottom: 8,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: theme.colors.gray500,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  cardLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cardLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.primary,
+  },
+  cardLinkTextAdmin: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: theme.colors.secondary,
+  },
+  signupLink: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  signupText: {
+    fontSize: 14,
+    color: theme.colors.gray500,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 64,
+  },
+  footerText: {
+    fontSize: 14,
+    color: theme.colors.gray400,
+  },
+});

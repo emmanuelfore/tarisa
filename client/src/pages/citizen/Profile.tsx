@@ -1,12 +1,9 @@
 import { MobileLayout } from "@/components/layout/MobileLayout";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Settings, LogOut, ChevronRight, MapPin, User, FileText, Phone, Mail, ShieldCheck, Building2 } from "lucide-react";
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "react-native-web";
+import { Settings, LogOut, ChevronRight, MapPin, Phone, Mail, ShieldCheck, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { theme } from "@/theme";
 
 export default function CitizenProfile() {
   const { toast } = useToast();
@@ -22,136 +19,332 @@ export default function CitizenProfile() {
 
   return (
     <MobileLayout>
-      <div className="px-6 pt-12 pb-6">
-        <h1 className="text-2xl font-heading font-bold text-gray-900 mb-6">My Profile</h1>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.headerTitle}>My Profile</Text>
 
         {/* Digital ID Card */}
-        <div className="relative mb-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-800 to-green-600 rounded-2xl transform rotate-1 opacity-20"></div>
-          <Card className="border-none shadow-xl bg-white overflow-hidden relative">
-            {/* Zim Coat of Arms Watermark Placeholder */}
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
-               <Building2 size={200} />
-            </div>
-
-            <div className="bg-green-700 h-3 w-full" /> {/* Top Green Bar */}
+        <View style={styles.idCardContainer}>
+          <View style={styles.idCard}>
+            <View style={styles.topBar} />
             
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div className="flex gap-4">
-                  <Avatar className="w-24 h-24 border-4 border-gray-50 shadow-sm rounded-lg">
-                    <AvatarImage src="https://github.com/shadcn.png" className="object-cover rounded-lg" />
-                    <AvatarFallback className="rounded-lg">TP</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 uppercase tracking-tight">Phiri</h2>
-                    <p className="text-lg text-gray-700 mb-1">Tatenda James</p>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center w-fit gap-1">
-                      <ShieldCheck className="w-3 h-3" /> Verified Resident
-                    </Badge>
-                  </div>
-                </div>
-              </div>
+            <View style={styles.cardContent}>
+              <View style={styles.profileHeader}>
+                <View style={styles.avatarContainer}>
+                  <Image source={{ uri: "https://github.com/shadcn.png" }} style={styles.avatar} />
+                  <View style={styles.avatarFallback}>
+                     <Text style={styles.avatarFallbackText}>TP</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.profileInfo}>
+                  <Text style={styles.lastName}>PHIRI</Text>
+                  <Text style={styles.firstName}>Tatenda James</Text>
+                  <View style={styles.verifiedBadge}>
+                    <ShieldCheck size={12} color={theme.colors.success} />
+                    <Text style={styles.verifiedText}>Verified Resident</Text>
+                  </View>
+                </View>
+              </View>
 
-              <div className="grid grid-cols-2 gap-y-4 gap-x-2 text-sm">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">National ID</p>
-                  <p className="font-mono font-medium text-gray-900">63-2394102 F 42</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Council</p>
-                  <p className="font-medium text-gray-900">City of Harare</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Ward</p>
-                  <p className="font-medium text-gray-900">Ward 7 (Avondale)</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wider mb-0.5">Role</p>
-                  <p className="font-medium text-gray-900">Ratepayer</p>
-                </div>
-              </div>
-            </CardContent>
-            <div className="bg-yellow-500 h-1 w-full" /> {/* Bottom Decoration */}
-          </Card>
-        </div>
+              <View style={styles.detailsGrid}>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>NATIONAL ID</Text>
+                  <Text style={styles.detailValueMono}>63-2394102 F 42</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>COUNCIL</Text>
+                  <Text style={styles.detailValue}>City of Harare</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>WARD</Text>
+                  <Text style={styles.detailValue}>Ward 7 (Avondale)</Text>
+                </View>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>ROLE</Text>
+                  <Text style={styles.detailValue}>Ratepayer</Text>
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.bottomBar} />
+          </View>
+        </View>
 
         {/* Contact Details */}
-        <div className="space-y-6 mb-8">
-          <h3 className="font-heading font-semibold text-gray-900">Contact Details</h3>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Contact Details</Text>
           
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="p-4 flex items-center gap-4 border-b border-gray-50">
-              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
-                <Phone size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">+263 77 123 4567</p>
-                <p className="text-xs text-gray-400">Primary Mobile</p>
-              </div>
-            </div>
-            <div className="p-4 flex items-center gap-4 border-b border-gray-50">
-              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
-                <Mail size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">tatenda.phiri@gmail.com</p>
-                <p className="text-xs text-gray-400">Email Address</p>
-              </div>
-            </div>
-             <div className="p-4 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
-                <MapPin size={20} />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-900">123 Samora Machel Avenue</p>
-                <p className="text-xs text-gray-400">Residential Address</p>
-              </div>
-            </div>
-          </div>
-        </div>
+          <View style={styles.contactCard}>
+            <View style={styles.contactRow}>
+              <View style={styles.iconCircle}>
+                <Phone size={20} color={theme.colors.gray500} />
+              </View>
+              <View>
+                <Text style={styles.contactValue}>+263 77 123 4567</Text>
+                <Text style={styles.contactLabel}>Primary Mobile</Text>
+              </View>
+            </View>
+            
+            <View style={styles.separator} />
+            
+            <View style={styles.contactRow}>
+              <View style={styles.iconCircle}>
+                <Mail size={20} color={theme.colors.gray500} />
+              </View>
+              <View>
+                <Text style={styles.contactValue}>tatenda.phiri@gmail.com</Text>
+                <Text style={styles.contactLabel}>Email Address</Text>
+              </View>
+            </View>
+
+            <View style={styles.separator} />
+
+            <View style={styles.contactRow}>
+              <View style={styles.iconCircle}>
+                <MapPin size={20} color={theme.colors.gray500} />
+              </View>
+              <View>
+                <Text style={styles.contactValue}>123 Samora Machel Avenue</Text>
+                <Text style={styles.contactLabel}>Residential Address</Text>
+              </View>
+            </View>
+          </View>
+        </View>
 
         {/* Account Actions */}
-        <div className="space-y-3">
-          <Button 
-            variant="outline" 
-            className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
+        <View style={styles.actionsList}>
+          <TouchableOpacity style={styles.actionButton}>
+            <View style={styles.actionLeft}>
+              <FileText size={20} color={theme.colors.gray500} />
+              <Text style={styles.actionText}>My Reports History</Text>
+            </View>
+            <ChevronRight size={16} color={theme.colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.actionButton}>
+            <View style={styles.actionLeft}>
+              <Settings size={20} color={theme.colors.gray500} />
+              <Text style={styles.actionText}>Settings</Text>
+            </View>
+            <ChevronRight size={16} color={theme.colors.gray400} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.logoutButton]}
+            onPress={handleLogout}
           >
-            <span className="flex items-center gap-3">
-              <FileText className="text-gray-500" />
-              My Reports History
-            </span>
-            <ChevronRight className="text-gray-400" size={16} />
-          </Button>
+            <View style={styles.actionLeft}>
+              <LogOut size={20} color={theme.colors.danger} />
+              <Text style={[styles.actionText, { color: theme.colors.danger }]}>Log Out</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
-          <Button 
-            variant="outline" 
-            className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
-          >
-            <span className="flex items-center gap-3">
-              <Settings className="text-gray-500" />
-              Settings
-            </span>
-            <ChevronRight className="text-gray-400" size={16} />
-          </Button>
-
-           <Button 
-             variant="outline" 
-             className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50 active:scale-[0.98] transition-transform"
-             onClick={handleLogout}
-           >
-            <span className="flex items-center gap-3">
-              <LogOut />
-              Log Out
-            </span>
-          </Button>
-        </div>
-
-        <div className="mt-8 text-center text-xs text-gray-400">
-          <p>Verified by Ministry of Local Govt</p>
-          <p className="mt-1">TARISA ID: 8829-1102</p>
-        </div>
-      </div>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Verified by Ministry of Local Govt</Text>
+          <Text style={styles.footerText}>TARISA ID: 8829-1102</Text>
+        </View>
+      </ScrollView>
     </MobileLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 24,
+    paddingTop: 48,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.gray900,
+    marginBottom: 24,
+  },
+  idCardContainer: {
+    marginBottom: 32,
+    transform: [{ rotate: '1deg' }],
+  },
+  idCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...theme.shadows.lg,
+  },
+  topBar: {
+    height: 12,
+    backgroundColor: theme.colors.primary,
+  },
+  cardContent: {
+    padding: 24,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 24,
+  },
+  avatarContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 4,
+    borderColor: theme.colors.gray100,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+    zIndex: 10,
+  },
+  avatarFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.gray200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: {
+    fontWeight: '600',
+    color: theme.colors.gray500,
+  },
+  profileInfo: {
+    justifyContent: 'center',
+  },
+  lastName: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.gray900,
+    letterSpacing: 0.5,
+  },
+  firstName: {
+    fontSize: 18,
+    color: theme.colors.gray800,
+    marginBottom: 4,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  verifiedText: {
+    fontSize: 10,
+    color: theme.colors.success,
+    fontWeight: '600',
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  detailItem: {
+    width: '45%',
+  },
+  detailLabel: {
+    fontSize: 10,
+    color: theme.colors.gray400,
+    fontWeight: '600',
+    marginBottom: 2,
+    letterSpacing: 0.5,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray900,
+  },
+  detailValueMono: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray900,
+    fontFamily: 'monospace',
+  },
+  bottomBar: {
+    height: 4,
+    backgroundColor: theme.colors.warning,
+  },
+  section: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.gray900,
+    marginBottom: 16,
+  },
+  contactCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.gray100,
+    overflow: 'hidden',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 16,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.gray100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray900,
+  },
+  contactLabel: {
+    fontSize: 12,
+    color: theme.colors.gray400,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.gray100,
+  },
+  actionsList: {
+    gap: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.gray200,
+    height: 56,
+  },
+  logoutButton: {
+    borderColor: theme.colors.danger + '40', // transparent red
+    backgroundColor: '#FEF2F2',
+  },
+  actionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.gray700,
+  },
+  footer: {
+    marginTop: 32,
+    alignItems: 'center',
+    gap: 4,
+  },
+  footerText: {
+    fontSize: 12,
+    color: theme.colors.gray400,
+  },
+});
