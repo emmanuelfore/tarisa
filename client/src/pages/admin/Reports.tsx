@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -341,7 +342,11 @@ export default function AdminReports() {
                           <AlertCircle size={14} className="mr-2" /> Escalate Issue
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>View Full Details</DropdownMenuItem>
+                        <Link href={`/admin/issue/${report.id}`}>
+                          <DropdownMenuItem>
+                            View Full Details
+                          </DropdownMenuItem>
+                        </Link>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

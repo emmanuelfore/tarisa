@@ -22,6 +22,7 @@ import AdminCitizens from "@/pages/admin/Citizens";
 import AdminStaff from "@/pages/admin/Staff";
 import AdminBroadcast from "@/pages/admin/Broadcast";
 import AdminAnalytics from "@/pages/admin/Analytics";
+import AdminIssueDetail from "@/pages/admin/IssueDetail";
 import Signup from "@/pages/auth/Signup";
 
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
@@ -71,6 +72,7 @@ function Router() {
       <Route path="/admin/staff" component={AdminStaff} /> 
       <Route path="/admin/broadcast" component={AdminBroadcast} /> 
       <Route path="/admin/analytics" component={AdminAnalytics} /> 
+      <Route path="/admin/issue/:id" component={AdminIssueDetail} /> 
 
       <Route component={NotFound} />
     </Switch>
