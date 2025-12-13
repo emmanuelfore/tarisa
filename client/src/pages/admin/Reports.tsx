@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,8 @@ import {
   ArrowUpRight,
   Building2,
   Phone,
-  Siren
+  Siren,
+  User
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -76,6 +77,15 @@ const ESCALATION_LEVELS = [
   { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
 ];
 
+const MOCK_STAFF = [
+  { id: "S1", name: "Eng. T. Moyo", role: "Department Head", departmentId: "coh_water" },
+  { id: "S2", name: "Sgt. P. Banda", role: "Officer", departmentId: "zrp" },
+  { id: "S3", name: "Mrs. C. Gumbo", role: "Dispatcher", departmentId: "zesa" },
+  { id: "S4", name: "Mr. K. Ndlovu", role: "Admin", departmentId: "coh_roads" },
+  { id: "S5", name: "Mr. T. Chiwenga", role: "Inspector", departmentId: "coh_waste" },
+  { id: "S6", name: "Ms. R. Mutasa", role: "Official", departmentId: "mot" },
+];
+
 const INITIAL_REPORTS = [
   {
     id: "TAR-2025-0042",
@@ -86,7 +96,8 @@ const INITIAL_REPORTS = [
     priority: "High",
     date: "2025-12-11",
     reporter: "Tatenda P.",
-    assignedTo: null,
+    assignedTo: null as string | null,
+    assignedStaff: null as string | null,
     escalation: "L1",
     description: "Large pothole causing traffic backup. Dangerous for small cars."
   },
@@ -99,7 +110,8 @@ const INITIAL_REPORTS = [
     priority: "Critical",
     date: "2025-12-10",
     reporter: "Sarah M.",
-    assignedTo: "CoH - Water & Sanitation",
+    assignedTo: "CoH - Water & Sanitation" as string | null,
+    assignedStaff: "Eng. T. Moyo" as string | null,
     escalation: "L2",
     description: "Main water line burst. Water flowing into the street for 4 hours."
   },
@@ -112,7 +124,8 @@ const INITIAL_REPORTS = [
     priority: "Medium",
     date: "2025-12-09",
     reporter: "John D.",
-    assignedTo: "ZESA - Faults",
+    assignedTo: "ZESA - Faults" as string | null,
+    assignedStaff: "Mrs. C. Gumbo" as string | null,
     escalation: "L1",
     description: "Entire street is dark. Security risk."
   },
@@ -125,7 +138,8 @@ const INITIAL_REPORTS = [
     priority: "High",
     date: "2025-12-09",
     reporter: "Grace K.",
-    assignedTo: null,
+    assignedTo: null as string | null,
+    assignedStaff: null as string | null,
     escalation: "L1",
     description: "Garbage has not been collected for 2 weeks. Health hazard."
   },
@@ -138,7 +152,8 @@ const INITIAL_REPORTS = [
     priority: "Critical",
     date: "2025-12-08",
     reporter: "Blessing T.",
-    assignedTo: null,
+    assignedTo: null as string | null,
+    assignedStaff: null as string | null,
     escalation: "L1",
     description: "Traffic lights stuck on red for all directions."
   },
@@ -150,12 +165,16 @@ export default function AdminReports() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
+  const [selectedStaff, setSelectedStaff] = useState("");
   const { toast } = useToast();
 
   const handleAssignClick = (report: typeof INITIAL_REPORTS[0]) => {
     setSelectedReport(report);
-    setSelectedDept(report.assignedTo || "");
+    // Find department ID from name if possible, or reset
+    const deptId = DEPARTMENTS.find(d => d.name === report.assignedTo)?.id || "";
+    setSelectedDept(deptId);
     setSelectedLevel(report.escalation);
+    setSelectedStaff(report.assignedStaff || "");
     setAssignDialogOpen(true);
   };
 
@@ -163,16 +182,23 @@ export default function AdminReports() {
     if (!selectedReport) return;
 
     const deptName = DEPARTMENTS.find(d => d.id === selectedDept)?.name || selectedDept;
+    const staffName = MOCK_STAFF.find(s => s.id === selectedStaff)?.name || null;
 
     setReports(reports.map(r => 
       r.id === selectedReport.id 
-        ? { ...r, assignedTo: deptName, escalation: selectedLevel, status: 'in_progress' } 
+        ? { 
+            ...r, 
+            assignedTo: deptName, 
+            assignedStaff: staffName as string | null,
+            escalation: selectedLevel, 
+            status: 'in_progress' 
+          } 
         : r
     ));
 
     toast({
       title: "Task Assigned Successfully",
-      description: `Report #${selectedReport.id} assigned to ${deptName} at ${ESCALATION_LEVELS.find(l => l.id === selectedLevel)?.name}.`,
+      description: `Report #${selectedReport.id} assigned to ${staffName ? staffName : deptName}.`,
     });
     setAssignDialogOpen(false);
   };
@@ -184,6 +210,10 @@ export default function AdminReports() {
       variant: "destructive",
     });
   };
+
+  const availableStaff = useMemo(() => {
+    return MOCK_STAFF.filter(staff => staff.departmentId === selectedDept);
+  }, [selectedDept]);
 
   return (
     <AdminLayout>
@@ -266,13 +296,21 @@ export default function AdminReports() {
                   </TableCell>
                   <TableCell>
                     {report.assignedTo ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                           <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                             {report.assignedTo.substring(0,2).toUpperCase()}
-                           </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium text-gray-700">{report.assignedTo}</span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                              {report.assignedTo.substring(0,2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium text-gray-700">{report.assignedTo}</span>
+                        </div>
+                        {report.assignedStaff && (
+                          <div className="flex items-center gap-1.5 ml-8">
+                             <User size={12} className="text-gray-400" />
+                             <span className="text-xs text-gray-500">{report.assignedStaff}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <span className="text-sm text-gray-400 italic">Unassigned</span>
@@ -333,7 +371,10 @@ export default function AdminReports() {
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Department / Authority</label>
-                <Select value={selectedDept} onValueChange={setSelectedDept}>
+                <Select value={selectedDept} onValueChange={(val) => {
+                  setSelectedDept(val);
+                  setSelectedStaff(""); // Reset staff when dept changes
+                }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
@@ -343,6 +384,41 @@ export default function AdminReports() {
                          <div className="flex items-center justify-between w-full">
                            <span>{dept.name}</span>
                            <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
+                         </div>
+                       </SelectItem>
+                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium flex items-center justify-between">
+                   <span>Assign Staff Member</span>
+                   <span className="text-xs text-gray-500 font-normal">(Optional)</span>
+                </label>
+                <Select 
+                  value={selectedStaff} 
+                  onValueChange={setSelectedStaff}
+                  disabled={!selectedDept || availableStaff.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={
+                      !selectedDept ? "Select a department first" :
+                      availableStaff.length === 0 ? "No staff found for this department" :
+                      "Select Staff Member"
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                     {availableStaff.map(staff => (
+                       <SelectItem key={staff.id} value={staff.id}>
+                         <div className="flex items-center gap-2">
+                           <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                {staff.name.split(' ').map(n => n[0]).join('')}
+                              </AvatarFallback>
+                           </Avatar>
+                           <span>{staff.name}</span>
+                           <span className="text-xs text-gray-400">({staff.role})</span>
                          </div>
                        </SelectItem>
                      ))}
