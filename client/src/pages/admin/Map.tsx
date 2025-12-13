@@ -4,10 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Filter, X, ChevronRight, MapPin, Layers } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue, 
+} from "@/components/ui/select";
+import { Search, Filter, X, ChevronRight, MapPin, Layers, Calendar, Thermometer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -53,12 +62,16 @@ const HARARE_CENTER = [-17.8216, 31.0492] as [number, number];
 
 // Mock data with real coordinates
 const MOCK_MAP_ISSUES = [
-  { id: "1", type: "Roads", status: "critical", lat: -17.8250, lng: 31.0500, title: "Deep Pothole", location: "Samora Machel Ave", reporter: "Tatenda P.", time: "2 hrs ago" },
-  { id: "2", type: "Water", status: "submitted", lat: -17.8200, lng: 31.0450, title: "Burst Pipe", location: "Borrowdale Rd", reporter: "Sarah M.", time: "4 hrs ago" },
-  { id: "3", type: "Lights", status: "resolved", lat: -17.8150, lng: 31.0550, title: "Broken Street Light", location: "4th Street", reporter: "John D.", time: "1 day ago" },
-  { id: "4", type: "Waste", status: "verified", lat: -17.8300, lng: 31.0400, title: "Illegal Dumping", location: "Harare Gardens", reporter: "Grace K.", time: "3 hrs ago" },
-  { id: "5", type: "Sewer", status: "in_progress", lat: -17.8280, lng: 31.0600, title: "Blocked Drain", location: "Jason Moyo Ave", reporter: "Mike T.", time: "5 hrs ago" },
-  { id: "6", type: "Roads", status: "submitted", lat: -17.8180, lng: 31.0480, title: "Traffic Signal Out", location: "Second St", reporter: "Blessing C.", time: "30 mins ago" },
+  { id: "1", type: "Roads", status: "critical", lat: -17.8250, lng: 31.0500, title: "Deep Pothole", location: "Samora Machel Ave", reporter: "Tatenda P.", time: "2 hrs ago", severity: 80 },
+  { id: "2", type: "Water", status: "submitted", lat: -17.8200, lng: 31.0450, title: "Burst Pipe", location: "Borrowdale Rd", reporter: "Sarah M.", time: "4 hrs ago", severity: 60 },
+  { id: "3", type: "Lights", status: "resolved", lat: -17.8150, lng: 31.0550, title: "Broken Street Light", location: "4th Street", reporter: "John D.", time: "1 day ago", severity: 30 },
+  { id: "4", type: "Waste", status: "verified", lat: -17.8300, lng: 31.0400, title: "Illegal Dumping", location: "Harare Gardens", reporter: "Grace K.", time: "3 hrs ago", severity: 50 },
+  { id: "5", type: "Sewer", status: "in_progress", lat: -17.8280, lng: 31.0600, title: "Blocked Drain", location: "Jason Moyo Ave", reporter: "Mike T.", time: "5 hrs ago", severity: 70 },
+  { id: "6", type: "Roads", status: "submitted", lat: -17.8180, lng: 31.0480, title: "Traffic Signal Out", location: "Second St", reporter: "Blessing C.", time: "30 mins ago", severity: 90 },
+  // Extra points for heatmap visualization
+  { id: "7", type: "Roads", status: "critical", lat: -17.8240, lng: 31.0510, title: "Pothole Cluster", location: "Samora Machel Ave", reporter: "Anon", time: "1 hr ago", severity: 85 },
+  { id: "8", type: "Roads", status: "critical", lat: -17.8260, lng: 31.0490, title: "Road Damage", location: "Samora Machel Ave", reporter: "Driver X", time: "3 hrs ago", severity: 75 },
+  { id: "9", type: "Water", status: "critical", lat: -17.8210, lng: 31.0460, title: "Leaking Valve", location: "Borrowdale Rd", reporter: "Res 1", time: "5 hrs ago", severity: 65 },
 ];
 
 // Component to handle map center updates
@@ -74,14 +87,23 @@ export default function AdminMap() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedIssue, setSelectedIssue] = useState<typeof MOCK_MAP_ISSUES[0] | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(HARARE_CENTER);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [timeRange, setTimeRange] = useState("7days");
   const { toast } = useToast();
 
   const filters = ['All', 'Roads', 'Water', 'Sewer', 'Lights', 'Waste'];
 
   const filteredIssues = useMemo(() => {
-    if (activeFilter === 'All') return MOCK_MAP_ISSUES;
-    return MOCK_MAP_ISSUES.filter(issue => issue.type === activeFilter);
-  }, [activeFilter]);
+    let issues = MOCK_MAP_ISSUES;
+    if (activeFilter !== 'All') {
+      issues = issues.filter(issue => issue.type === activeFilter);
+    }
+    // Simulate time filtering (just shuffle functionality for mockup)
+    if (timeRange === "24h") {
+      return issues.slice(0, 4);
+    }
+    return issues;
+  }, [activeFilter, timeRange]);
 
   const handleIssueClick = (issue: typeof MOCK_MAP_ISSUES[0]) => {
     setSelectedIssue(issue);
@@ -93,22 +115,49 @@ export default function AdminMap() {
       <div className="flex flex-col h-[calc(100vh-140px)] gap-4">
         {/* Map Controls Bar */}
         <Card className="flex-none">
-          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input 
-                  placeholder="Search location or ID..." 
-                  className="pl-10"
-                />
+          <CardContent className="p-4 flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              {/* Search & Basic Filter */}
+              <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+                <div className="relative w-full max-w-sm">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Input 
+                    placeholder="Search location or ID..." 
+                    className="pl-10"
+                  />
+                </div>
+                
+                {/* Time Range Selector */}
+                <Select value={timeRange} onValueChange={setTimeRange}>
+                  <SelectTrigger className="w-[160px]">
+                    <Calendar className="mr-2 h-4 w-4 text-gray-500" />
+                    <SelectValue placeholder="Time Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24h">Last 24 Hours</SelectItem>
+                    <SelectItem value="7days">Last 7 Days</SelectItem>
+                    <SelectItem value="30days">Last 30 Days</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Heatmap Toggle */}
+                <div className="flex items-center space-x-2 border-l pl-4 border-gray-200">
+                  <Switch 
+                    id="heatmap-mode" 
+                    checked={showHeatmap} 
+                    onCheckedChange={setShowHeatmap}
+                  />
+                  <Label htmlFor="heatmap-mode" className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                    <Thermometer size={16} className={showHeatmap ? "text-orange-500" : "text-gray-400"} />
+                    Heatmap
+                  </Label>
+                </div>
               </div>
-              <Button variant="outline" className="gap-2">
-                <Filter size={16} />
-                Filters
-              </Button>
             </div>
             
-            <div className="flex gap-2 overflow-x-auto pb-0">
+            {/* Category Pills */}
+            <div className="flex gap-2 overflow-x-auto pb-0 pt-2 border-t border-gray-100">
               {filters.map(filter => (
                 <Badge 
                   key={filter}
@@ -145,16 +194,32 @@ export default function AdminMap() {
             
             <MapUpdater center={mapCenter} />
 
-            {filteredIssues.map((issue) => (
-              <Marker 
-                key={issue.id} 
-                position={[issue.lat, issue.lng]}
-                icon={ICONS[issue.status as keyof typeof ICONS] || ICONS.submitted}
-                eventHandlers={{
-                  click: () => handleIssueClick(issue),
-                }}
-              />
-            ))}
+            {/* Render Heatmap Circles or Standard Markers */}
+            {showHeatmap ? (
+              filteredIssues.map((issue) => (
+                <CircleMarker
+                  key={`heat-${issue.id}`}
+                  center={[issue.lat, issue.lng]}
+                  radius={25}
+                  pathOptions={{ 
+                    fillColor: issue.severity > 80 ? 'red' : issue.severity > 50 ? 'orange' : 'yellow',
+                    fillOpacity: 0.5,
+                    stroke: false
+                  }}
+                />
+              ))
+            ) : (
+              filteredIssues.map((issue) => (
+                <Marker 
+                  key={issue.id} 
+                  position={[issue.lat, issue.lng]}
+                  icon={ICONS[issue.status as keyof typeof ICONS] || ICONS.submitted}
+                  eventHandlers={{
+                    click: () => handleIssueClick(issue),
+                  }}
+                />
+              ))
+            )}
           </MapContainer>
 
           {/* Map Controls Overlay */}
