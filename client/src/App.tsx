@@ -18,6 +18,7 @@ import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminMap from "@/pages/admin/Map";
 import AdminReports from "@/pages/admin/Reports";
 import AdminSettings from "@/pages/admin/Settings";
+import AdminUsers from "@/pages/admin/Users";
 import Signup from "@/pages/auth/Signup";
 
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
@@ -63,6 +64,7 @@ function Router() {
       <Route path="/admin/reports" component={AdminReports} /> 
       <Route path="/admin/map" component={AdminMap} /> 
       <Route path="/admin/settings" component={AdminSettings} /> 
+      <Route path="/admin/users" component={AdminUsers} /> 
 
       <Route component={NotFound} />
     </Switch>
