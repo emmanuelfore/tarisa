@@ -8,7 +8,8 @@ import {
   LogOut,
   Map as MapIcon,
   Bell,
-  Shield
+  Shield,
+  Megaphone
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             }`}>
             <Shield size={20} />
             Staff
+          </Link>
+
+          <Link href="/admin/broadcast" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              isActive("/admin/broadcast") 
+                ? "bg-primary/10 text-primary" 
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            }`}>
+            <Megaphone size={20} />
+            Broadcasts
           </Link>
 
           <Link href="/admin/settings" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
