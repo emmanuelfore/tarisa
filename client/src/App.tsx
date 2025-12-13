@@ -17,6 +17,7 @@ import CitizenCredits from "@/pages/citizen/Credits";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminMap from "@/pages/admin/Map";
 import AdminReports from "@/pages/admin/Reports";
+import AdminSettings from "@/pages/admin/Settings";
 import Signup from "@/pages/auth/Signup";
 
 function SplashScreen({ onFinish }: { onFinish: () => void }) {
@@ -61,6 +62,7 @@ function Router() {
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/reports" component={AdminReports} /> 
       <Route path="/admin/map" component={AdminMap} /> 
+      <Route path="/admin/settings" component={AdminSettings} /> 
 
       <Route component={NotFound} />
     </Switch>
