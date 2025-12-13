@@ -106,9 +106,34 @@ export default function AdminSettings() {
   const [newDeptOpen, setNewDeptOpen] = useState(false);
   const [deptForm, setDeptForm] = useState<Partial<Department>>({});
 
+  const [newLevelOpen, setNewLevelOpen] = useState(false);
+  const [levelForm, setLevelForm] = useState<Partial<EscalationLevel>>({});
+
   const filteredLevels = useMemo(() => {
     return escalationLevels.filter(level => level.authorityType === selectedAuthorityType);
   }, [escalationLevels, selectedAuthorityType]);
+
+  const handleAddEscalationLevel = () => {
+    if (!levelForm.name || !levelForm.description || !levelForm.sla) return;
+
+    const newLevel: EscalationLevel = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: levelForm.name,
+      description: levelForm.description,
+      sla: levelForm.sla,
+      color: levelForm.color || "blue",
+      authorityType: selectedAuthorityType,
+    };
+
+    setEscalationLevels([...escalationLevels, newLevel]);
+    setNewLevelOpen(false);
+    setLevelForm({});
+    
+    toast({
+      title: "Escalation Level Added",
+      description: `${newLevel.name} has been added to ${selectedAuthorityType} levels.`,
+    });
+  };
 
   const handleAddDepartment = () => {
     if (!deptForm.name || !deptForm.type) return;
@@ -329,9 +354,71 @@ export default function AdminSettings() {
                   )}
                   
                   <div className="pl-8 pt-2">
-                    <Button variant="outline" className="w-full border-dashed border-gray-300 text-gray-500 hover:border-primary hover:text-primary">
-                      <Plus size={16} className="mr-2" /> Add Level for {selectedAuthorityType}
-                    </Button>
+                    <Dialog open={newLevelOpen} onOpenChange={setNewLevelOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="w-full border-dashed border-gray-300 text-gray-500 hover:border-primary hover:text-primary">
+                          <Plus size={16} className="mr-2" /> Add Level for {selectedAuthorityType}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add Escalation Level</DialogTitle>
+                          <DialogDescription>
+                            Create a new escalation step for {selectedAuthorityType} authorities.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="levelName">Level Name</Label>
+                            <Input 
+                              id="levelName" 
+                              placeholder="e.g. Level 5: Presidential Office" 
+                              value={levelForm.name || ""} 
+                              onChange={e => setLevelForm({...levelForm, name: e.target.value})}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="levelDesc">Description</Label>
+                            <Input 
+                              id="levelDesc" 
+                              placeholder="e.g. Highest level intervention" 
+                              value={levelForm.description || ""} 
+                              onChange={e => setLevelForm({...levelForm, description: e.target.value})}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="levelSLA">SLA (Response Time)</Label>
+                            <Input 
+                              id="levelSLA" 
+                              placeholder="e.g. 1 Week" 
+                              value={levelForm.sla || ""} 
+                              onChange={e => setLevelForm({...levelForm, sla: e.target.value})}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="levelColor">Color Indicator</Label>
+                            <Select 
+                              value={levelForm.color || ""}
+                              onValueChange={(val) => setLevelForm({...levelForm, color: val})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Color" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="blue">Blue (Low)</SelectItem>
+                                <SelectItem value="purple">Purple (Medium)</SelectItem>
+                                <SelectItem value="orange">Orange (High)</SelectItem>
+                                <SelectItem value="red">Red (Critical)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setNewLevelOpen(false)}>Cancel</Button>
+                          <Button onClick={handleAddEscalationLevel}>Add Level</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </div>
               </CardContent>
