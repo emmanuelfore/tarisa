@@ -69,6 +69,14 @@ type EscalationLevel = {
   authorityType: AuthorityType; // Linked to Authority Type
 };
 
+type IssueType = {
+  id: string;
+  name: string;
+  category: string;
+  defaultPriority: "Low" | "Medium" | "High" | "Critical";
+  sla: string;
+};
+
 // Mock Data
 const INITIAL_DEPARTMENTS: Department[] = [
   { id: "1", name: "CoH - Water & Sanitation", type: "Municipal", contact: "+263 772 111 222", head: "Eng. Moyo" },
@@ -97,9 +105,18 @@ const INITIAL_LEVELS: EscalationLevel[] = [
   { id: "Z4", name: "Level 4: PGHQ", description: "Police General Headquarters", sla: "48 Hours", color: "red", authorityType: "Police" },
 ];
 
+const INITIAL_ISSUE_TYPES: IssueType[] = [
+  { id: "IT1", name: "Pothole Repair", category: "Roads", defaultPriority: "High", sla: "48 Hours" },
+  { id: "IT2", name: "Burst Water Pipe", category: "Water", defaultPriority: "Critical", sla: "4 Hours" },
+  { id: "IT3", name: "Illegal Dumping", category: "Waste", defaultPriority: "Medium", sla: "72 Hours" },
+  { id: "IT4", name: "Traffic Light Fault", category: "Roads", defaultPriority: "High", sla: "24 Hours" },
+  { id: "IT5", name: "Noise Complaint", category: "Police", defaultPriority: "Low", sla: "6 Hours" },
+];
+
 export default function AdminSettings() {
   const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
   const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>(INITIAL_LEVELS);
+  const [issueTypes, setIssueTypes] = useState<IssueType[]>(INITIAL_ISSUE_TYPES);
   const [selectedAuthorityType, setSelectedAuthorityType] = useState<AuthorityType>("Municipal");
   const { toast } = useToast();
 
@@ -108,6 +125,9 @@ export default function AdminSettings() {
 
   const [newLevelOpen, setNewLevelOpen] = useState(false);
   const [levelForm, setLevelForm] = useState<Partial<EscalationLevel>>({});
+
+  const [newIssueTypeOpen, setNewIssueTypeOpen] = useState(false);
+  const [issueTypeForm, setIssueTypeForm] = useState<Partial<IssueType>>({});
 
   const filteredLevels = useMemo(() => {
     return escalationLevels.filter(level => level.authorityType === selectedAuthorityType);
@@ -132,6 +152,36 @@ export default function AdminSettings() {
     toast({
       title: "Escalation Level Added",
       description: `${newLevel.name} has been added to ${selectedAuthorityType} levels.`,
+    });
+  };
+
+  const handleAddIssueType = () => {
+    if (!issueTypeForm.name || !issueTypeForm.category) return;
+
+    const newType: IssueType = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: issueTypeForm.name,
+      category: issueTypeForm.category,
+      defaultPriority: issueTypeForm.defaultPriority || "Medium",
+      sla: issueTypeForm.sla || "48 Hours",
+    };
+
+    setIssueTypes([...issueTypes, newType]);
+    setNewIssueTypeOpen(false);
+    setIssueTypeForm({});
+
+    toast({
+      title: "Issue Type Added",
+      description: `${newType.name} has been added to the system.`,
+    });
+  };
+
+  const handleDeleteIssueType = (id: string) => {
+    setIssueTypes(issueTypes.filter(t => t.id !== id));
+    toast({
+      title: "Issue Type Removed",
+      description: "The issue type has been removed.",
+      variant: "destructive",
     });
   };
 
@@ -174,8 +224,9 @@ export default function AdminSettings() {
         </div>
 
         <Tabs defaultValue="departments" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 lg:w-[600px]">
             <TabsTrigger value="departments">Authorities</TabsTrigger>
+            <TabsTrigger value="issuetypes">Issue Types</TabsTrigger>
             <TabsTrigger value="escalation">Escalation Matrix</TabsTrigger>
           </TabsList>
 
@@ -278,6 +329,130 @@ export default function AdminSettings() {
                         <TableCell className="font-mono text-xs">{dept.contact}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteDept(dept.id)}>
+                            <Trash2 size={16} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Issue Types Tab */}
+          <TabsContent value="issuetypes" className="mt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Issue Types Configuration</CardTitle>
+                  <CardDescription>Define categories of issues citizens can report and their default parameters.</CardDescription>
+                </div>
+                <Dialog open={newIssueTypeOpen} onOpenChange={setNewIssueTypeOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <Plus size={16} /> Add Issue Type
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Issue Type</DialogTitle>
+                      <DialogDescription>Create a new category for citizen reports.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="issueName">Issue Name</Label>
+                        <Input 
+                          id="issueName" 
+                          placeholder="e.g. Broken Traffic Light" 
+                          value={issueTypeForm.name || ""} 
+                          onChange={e => setIssueTypeForm({...issueTypeForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="issueCategory">Category</Label>
+                        <Select 
+                          value={issueTypeForm.category || ""}
+                          onValueChange={(val) => setIssueTypeForm({...issueTypeForm, category: val})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Roads">Roads & Infrastructure</SelectItem>
+                            <SelectItem value="Water">Water & Sanitation</SelectItem>
+                            <SelectItem value="Waste">Waste Management</SelectItem>
+                            <SelectItem value="Power">Power (ZESA)</SelectItem>
+                            <SelectItem value="Police">Police / Safety</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="defaultPriority">Default Priority</Label>
+                        <Select 
+                          value={issueTypeForm.defaultPriority || ""}
+                          onValueChange={(val) => setIssueTypeForm({...issueTypeForm, defaultPriority: val as any})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Priority" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Low">Low</SelectItem>
+                            <SelectItem value="Medium">Medium</SelectItem>
+                            <SelectItem value="High">High</SelectItem>
+                            <SelectItem value="Critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="issueSLA">Default SLA</Label>
+                        <Input 
+                          id="issueSLA" 
+                          placeholder="e.g. 48 Hours" 
+                          value={issueTypeForm.sla || ""} 
+                          onChange={e => setIssueTypeForm({...issueTypeForm, sla: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setNewIssueTypeOpen(false)}>Cancel</Button>
+                      <Button onClick={handleAddIssueType}>Save Issue Type</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Issue Type</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Default Priority</TableHead>
+                      <TableHead>SLA</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {issueTypes.map((type) => (
+                      <TableRow key={type.id}>
+                        <TableCell className="font-medium">{type.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{type.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${
+                            type.defaultPriority === 'Critical' ? 'bg-red-100 text-red-700' :
+                            type.defaultPriority === 'High' ? 'bg-orange-100 text-orange-700' :
+                            type.defaultPriority === 'Medium' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {type.defaultPriority}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500">{type.sla}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteIssueType(type.id)}>
                             <Trash2 size={16} />
                           </Button>
                         </TableCell>
