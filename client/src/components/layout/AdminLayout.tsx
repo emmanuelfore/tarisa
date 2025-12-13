@@ -9,7 +9,8 @@ import {
   Map as MapIcon,
   Bell,
   Shield,
-  Megaphone
+  Megaphone,
+  BarChart
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             }`}>
             <Megaphone size={20} />
             Broadcasts
+          </Link>
+
+          <Link href="/admin/analytics" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              isActive("/admin/analytics") 
+                ? "bg-primary/10 text-primary" 
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            }`}>
+            <BarChart size={20} />
+            Analytics
           </Link>
 
           <Link href="/admin/settings" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
