@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { 
   Building2, 
@@ -43,10 +50,12 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 // Types
+type AuthorityType = "Municipal" | "Parastatal" | "Police" | "Government";
+
 type Department = {
   id: string;
   name: string;
-  type: "Municipal" | "Parastatal" | "Police" | "Government";
+  type: AuthorityType;
   contact: string;
   head: string;
 };
@@ -57,6 +66,7 @@ type EscalationLevel = {
   description: string;
   sla: string; // Service Level Agreement time
   color: string;
+  authorityType: AuthorityType; // Linked to Authority Type
 };
 
 // Mock Data
@@ -68,19 +78,37 @@ const INITIAL_DEPARTMENTS: Department[] = [
 ];
 
 const INITIAL_LEVELS: EscalationLevel[] = [
-  { id: "L1", name: "Level 1: Ward Team", description: "Initial response team at ward level", sla: "24 Hours", color: "blue" },
-  { id: "L2", name: "Level 2: District Office", description: "District management intervention", sla: "48 Hours", color: "purple" },
-  { id: "L3", name: "Level 3: Town House HQ", description: "Central city directorate attention", sla: "72 Hours", color: "orange" },
-  { id: "L4", name: "Level 4: National Ministry", description: "Ministerial/Government oversight", sla: "1 Week", color: "red" },
+  // Municipal Levels
+  { id: "M1", name: "Level 1: Ward Team", description: "Initial response team at ward level", sla: "24 Hours", color: "blue", authorityType: "Municipal" },
+  { id: "M2", name: "Level 2: District Office", description: "District management intervention", sla: "48 Hours", color: "purple", authorityType: "Municipal" },
+  { id: "M3", name: "Level 3: Town House HQ", description: "Central city directorate attention", sla: "72 Hours", color: "orange", authorityType: "Municipal" },
+  { id: "M4", name: "Level 4: National Ministry", description: "Ministerial/Government oversight", sla: "1 Week", color: "red", authorityType: "Municipal" },
+
+  // Parastatal Levels (ZESA)
+  { id: "P1", name: "Level 1: Local Depot", description: "Faults team at local depot", sla: "6 Hours", color: "blue", authorityType: "Parastatal" },
+  { id: "P2", name: "Level 2: Area Manager", description: "Area manager escalation", sla: "24 Hours", color: "purple", authorityType: "Parastatal" },
+  { id: "P3", name: "Level 3: Regional Manager", description: "Regional infrastructure issue", sla: "48 Hours", color: "orange", authorityType: "Parastatal" },
+  { id: "P4", name: "Level 4: National Control", description: "National grid control center", sla: "Immediate", color: "red", authorityType: "Parastatal" },
+
+  // Police Levels (ZRP)
+  { id: "Z1", name: "Level 1: Charge Office", description: "Report received at station", sla: "Immediate", color: "blue", authorityType: "Police" },
+  { id: "Z2", name: "Level 2: Officer in Charge", description: "Station Commander review", sla: "12 Hours", color: "purple", authorityType: "Police" },
+  { id: "Z3", name: "Level 3: District Command", description: "District HQ escalation", sla: "24 Hours", color: "orange", authorityType: "Police" },
+  { id: "Z4", name: "Level 4: PGHQ", description: "Police General Headquarters", sla: "48 Hours", color: "red", authorityType: "Police" },
 ];
 
 export default function AdminSettings() {
   const [departments, setDepartments] = useState<Department[]>(INITIAL_DEPARTMENTS);
   const [escalationLevels, setEscalationLevels] = useState<EscalationLevel[]>(INITIAL_LEVELS);
+  const [selectedAuthorityType, setSelectedAuthorityType] = useState<AuthorityType>("Municipal");
   const { toast } = useToast();
 
   const [newDeptOpen, setNewDeptOpen] = useState(false);
   const [deptForm, setDeptForm] = useState<Partial<Department>>({});
+
+  const filteredLevels = useMemo(() => {
+    return escalationLevels.filter(level => level.authorityType === selectedAuthorityType);
+  }, [escalationLevels, selectedAuthorityType]);
 
   const handleAddDepartment = () => {
     if (!deptForm.name || !deptForm.type) return;
@@ -157,18 +185,20 @@ export default function AdminSettings() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="type">Type</Label>
-                        <select 
-                          id="type"
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        <Select 
                           value={deptForm.type || ""}
-                          onChange={e => setDeptForm({...deptForm, type: e.target.value as any})}
+                          onValueChange={(val) => setDeptForm({...deptForm, type: val as any})}
                         >
-                          <option value="">Select Type</option>
-                          <option value="Municipal">Municipal</option>
-                          <option value="Government">Government</option>
-                          <option value="Parastatal">Parastatal</option>
-                          <option value="Police">Police</option>
-                        </select>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select Type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Municipal">Municipal</SelectItem>
+                            <SelectItem value="Government">Government</SelectItem>
+                            <SelectItem value="Parastatal">Parastatal</SelectItem>
+                            <SelectItem value="Police">Police</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="head">Head of Department</Label>
@@ -237,48 +267,70 @@ export default function AdminSettings() {
           {/* Escalation Tab */}
           <TabsContent value="escalation" className="mt-6">
              <Card>
-              <CardHeader>
-                <CardTitle>Escalation Levels</CardTitle>
-                <CardDescription>Define the hierarchy for issue escalation and SLAs.</CardDescription>
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardTitle>Escalation Levels</CardTitle>
+                  <CardDescription>Define the hierarchy for issue escalation and SLAs based on authority type.</CardDescription>
+                </div>
+                <div className="w-[200px]">
+                  <Select value={selectedAuthorityType} onValueChange={(val) => setSelectedAuthorityType(val as AuthorityType)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Authority Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Municipal">Municipal</SelectItem>
+                      <SelectItem value="Parastatal">Parastatal</SelectItem>
+                      <SelectItem value="Police">Police</SelectItem>
+                      <SelectItem value="Government">Government</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {escalationLevels.map((level, index) => (
-                    <div key={level.id} className="relative pl-8 pb-6 last:pb-0 border-l-2 border-dashed border-gray-200">
-                      <div className={`absolute -left-[11px] top-0 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center
-                        ${level.color === 'red' ? 'bg-red-500' : 
-                          level.color === 'orange' ? 'bg-orange-500' : 
-                          level.color === 'purple' ? 'bg-purple-500' : 'bg-blue-500'}
-                      `}>
-                        <span className="text-[10px] font-bold text-white">{index + 1}</span>
-                      </div>
-                      
-                      <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-primary/50 transition-colors cursor-pointer group">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-heading font-semibold text-gray-900 flex items-center gap-2">
-                              {level.name}
-                              {level.id === 'L4' && <Siren size={14} className="text-red-500 animate-pulse" />}
-                            </h4>
-                            <p className="text-sm text-gray-500">{level.description}</p>
-                          </div>
-                          <Badge variant="outline" className="flex items-center gap-1 bg-gray-50">
-                            <Clock size={12} />
-                            SLA: {level.sla}
-                          </Badge>
+                  {filteredLevels.length > 0 ? (
+                    filteredLevels.map((level, index) => (
+                      <div key={level.id} className="relative pl-8 pb-6 last:pb-0 border-l-2 border-dashed border-gray-200">
+                        <div className={`absolute -left-[11px] top-0 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center
+                          ${level.color === 'red' ? 'bg-red-500' : 
+                            level.color === 'orange' ? 'bg-orange-500' : 
+                            level.color === 'purple' ? 'bg-purple-500' : 'bg-blue-500'}
+                        `}>
+                          <span className="text-[10px] font-bold text-white">{index + 1}</span>
                         </div>
                         
-                        <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <Button variant="ghost" size="sm" className="h-8 text-xs">Edit Rules</Button>
-                           <Button variant="ghost" size="sm" className="h-8 text-xs text-red-500 hover:text-red-600">Disable</Button>
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 hover:border-primary/50 transition-colors cursor-pointer group">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-heading font-semibold text-gray-900 flex items-center gap-2">
+                                {level.name}
+                                {level.color === 'red' && <Siren size={14} className="text-red-500 animate-pulse" />}
+                              </h4>
+                              <p className="text-sm text-gray-500">{level.description}</p>
+                            </div>
+                            <Badge variant="outline" className="flex items-center gap-1 bg-gray-50">
+                              <Clock size={12} />
+                              SLA: {level.sla}
+                            </Badge>
+                          </div>
+                          
+                          <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="sm" className="h-8 text-xs">Edit Rules</Button>
+                             <Button variant="ghost" size="sm" className="h-8 text-xs text-red-500 hover:text-red-600">Disable</Button>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-xl border border-dashed">
+                      <p>No escalation levels configured for {selectedAuthorityType}.</p>
+                      <Button variant="link" className="mt-2 text-primary">Configure Default Levels</Button>
                     </div>
-                  ))}
+                  )}
                   
                   <div className="pl-8 pt-2">
                     <Button variant="outline" className="w-full border-dashed border-gray-300 text-gray-500 hover:border-primary hover:text-primary">
-                      <Plus size={16} className="mr-2" /> Add Escalation Level
+                      <Plus size={16} className="mr-2" /> Add Level for {selectedAuthorityType}
                     </Button>
                   </div>
                 </div>
