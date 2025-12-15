@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Link } from "wouter";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -123,7 +124,9 @@ export default function AdminCitizens() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>View Profile</DropdownMenuItem>
+                          <Link href={`/admin/citizen/${citizen.id}`}>
+                            <DropdownMenuItem>View Profile</DropdownMenuItem>
+                          </Link>
                           <DropdownMenuItem>Verification History</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {citizen.status !== 'Suspended' ? (
