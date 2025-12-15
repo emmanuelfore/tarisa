@@ -148,14 +148,27 @@ export const broadcasts = pgTable("broadcasts", {
   sentAt: timestamp("sent_at"),
 });
 
-// Admin users
+// Admin users with role-based access control
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
-  role: text("role").notNull().default("admin"), // admin, staff
+  name: text("name").notNull(),
+  email: text("email"),
+  role: text("role").notNull().default("officer"), // super_admin, admin, manager, officer
+  departmentId: integer("department_id").references(() => departments.id),
+  escalationLevel: text("escalation_level").notNull().default("L1"), // L1, L2, L3, L4
+  permissions: jsonb("permissions").$type<string[]>().default([]),
+  active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const usersRelations = relations(users, ({ one }) => ({
+  department: one(departments, {
+    fields: [users.departmentId],
+    references: [departments.id],
+  }),
+}));
 
 // Insert schemas
 export const insertCitizenSchema = createInsertSchema(citizens).omit({
@@ -200,6 +213,25 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
 });
+
+// Role hierarchy for permission checking
+export const ROLE_HIERARCHY = {
+  super_admin: 4,
+  admin: 3,
+  manager: 2,
+  officer: 1,
+} as const;
+
+// Escalation level hierarchy
+export const ESCALATION_HIERARCHY = {
+  L1: 1, // Ward level
+  L2: 2, // District level
+  L3: 3, // Town House level
+  L4: 4, // Ministry level
+} as const;
+
+export type UserRole = keyof typeof ROLE_HIERARCHY;
+export type EscalationLevel = keyof typeof ESCALATION_HIERARCHY;
 
 // Select/Infer types
 export type Citizen = typeof citizens.$inferSelect;

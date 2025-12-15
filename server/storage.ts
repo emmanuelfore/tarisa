@@ -8,9 +8,11 @@ import {
   type Timeline, type InsertTimeline,
   type Broadcast, type InsertBroadcast,
   type User, type InsertUser,
+  ESCALATION_HIERARCHY,
+  type EscalationLevel,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, sql, gte, lte } from "drizzle-orm";
+import { eq, desc, and, or, sql, gte, lte, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Citizens
@@ -63,6 +65,11 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  listUsers(): Promise<User[]>;
+  updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+
+  // Role-based issue access
+  listIssuesByEscalationLevel(escalationLevel: EscalationLevel, departmentId?: number): Promise<Issue[]>;
 
   // Analytics
   getAnalytics(): Promise<{
@@ -155,17 +162,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createIssue(insertIssue: InsertIssue): Promise<Issue> {
-    // Generate tracking ID
     const year = new Date().getFullYear();
     const count = await db.select({ count: sql<number>`count(*)` }).from(issues);
     const trackingId = `TAR-${year}-${String(Number(count[0].count) + 1).padStart(4, '0')}`;
 
-    const [issue] = await db
-      .insert(issues)
-      .values({ ...insertIssue, trackingId })
-      .returning();
+    const photosArray: string[] = Array.isArray(insertIssue.photos) ? [...insertIssue.photos] : [];
+
+    const [issue] = await db.insert(issues).values({
+      title: insertIssue.title,
+      description: insertIssue.description,
+      category: insertIssue.category,
+      location: insertIssue.location,
+      citizenId: insertIssue.citizenId,
+      trackingId,
+      coordinates: insertIssue.coordinates ?? null,
+      status: insertIssue.status ?? 'submitted',
+      priority: insertIssue.priority ?? 'medium',
+      severity: insertIssue.severity ?? 50,
+      escalationLevel: insertIssue.escalationLevel ?? 'L1',
+      assignedDepartmentId: insertIssue.assignedDepartmentId ?? null,
+      assignedStaffId: insertIssue.assignedStaffId ?? null,
+      photos: photosArray,
+    }).returning();
     
-    // Create initial timeline entry
     await this.createTimeline({
       issueId: issue.id,
       type: 'created',
@@ -178,9 +197,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateIssue(id: number, data: Partial<InsertIssue>): Promise<Issue | undefined> {
+    const updateData: Record<string, any> = { updatedAt: new Date() };
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.location !== undefined) updateData.location = data.location;
+    if (data.coordinates !== undefined) updateData.coordinates = data.coordinates;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.priority !== undefined) updateData.priority = data.priority;
+    if (data.severity !== undefined) updateData.severity = data.severity;
+    if (data.escalationLevel !== undefined) updateData.escalationLevel = data.escalationLevel;
+    if (data.assignedDepartmentId !== undefined) updateData.assignedDepartmentId = data.assignedDepartmentId;
+    if (data.assignedStaffId !== undefined) updateData.assignedStaffId = data.assignedStaffId;
+    if (data.photos !== undefined) updateData.photos = data.photos;
+
     const [issue] = await db
       .update(issues)
-      .set({ ...data, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(issues.id, id))
       .returning();
     return issue || undefined;
@@ -275,10 +308,15 @@ export class DatabaseStorage implements IStorage {
 
   // Broadcasts
   async createBroadcast(insertBroadcast: InsertBroadcast): Promise<Broadcast> {
-    const [broadcast] = await db
-      .insert(broadcasts)
-      .values({ ...insertBroadcast, sentAt: new Date() })
-      .returning();
+    const wardsArray: string[] = Array.isArray(insertBroadcast.targetWards) ? [...insertBroadcast.targetWards] : [];
+    const [broadcast] = await db.insert(broadcasts).values({
+      title: insertBroadcast.title,
+      message: insertBroadcast.message,
+      severity: insertBroadcast.severity,
+      createdBy: insertBroadcast.createdBy,
+      targetWards: wardsArray,
+      sentAt: new Date(),
+    }).returning();
     return broadcast;
   }
 
@@ -298,8 +336,59 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
+    const permissionsArray: string[] = Array.isArray(insertUser.permissions) ? [...insertUser.permissions] : [];
+    const [user] = await db.insert(users).values({
+      username: insertUser.username,
+      password: insertUser.password,
+      name: insertUser.name,
+      email: insertUser.email ?? null,
+      role: insertUser.role ?? 'officer',
+      departmentId: insertUser.departmentId ?? null,
+      escalationLevel: insertUser.escalationLevel ?? 'L1',
+      permissions: permissionsArray,
+      active: insertUser.active ?? true,
+    }).returning();
     return user;
+  }
+
+  async listUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    const updateData: Record<string, any> = {};
+    if (data.username !== undefined) updateData.username = data.username;
+    if (data.password !== undefined) updateData.password = data.password;
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.role !== undefined) updateData.role = data.role;
+    if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
+    if (data.escalationLevel !== undefined) updateData.escalationLevel = data.escalationLevel;
+    if (data.active !== undefined) updateData.active = data.active;
+    if (data.permissions !== undefined) {
+      updateData.permissions = Array.isArray(data.permissions) ? [...data.permissions] : [];
+    }
+
+    const [user] = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
+    return user || undefined;
+  }
+
+  async listIssuesByEscalationLevel(escalationLevel: EscalationLevel, departmentId?: number): Promise<Issue[]> {
+    const userLevel = ESCALATION_HIERARCHY[escalationLevel];
+    const allowedLevels = Object.entries(ESCALATION_HIERARCHY)
+      .filter(([_, level]) => level <= userLevel)
+      .map(([key]) => key);
+
+    const conditions = [inArray(issues.escalationLevel, allowedLevels)];
+    if (departmentId) {
+      conditions.push(eq(issues.assignedDepartmentId, departmentId));
+    }
+
+    return await db
+      .select()
+      .from(issues)
+      .where(and(...conditions))
+      .orderBy(desc(issues.createdAt));
   }
 
   // Analytics
