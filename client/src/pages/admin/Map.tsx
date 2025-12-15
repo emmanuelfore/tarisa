@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue, 
 } from "@/components/ui/select";
-import { Search, Filter, X, ChevronRight, MapPin, Layers, Calendar, Thermometer } from "lucide-react";
+import { Link } from "wouter";
+import { Search, Filter, X, ChevronRight, MapPin, Layers, Calendar, Thermometer, Car, Siren, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { MapContainer, TileLayer, Marker, Popup, useMap, CircleMarker } from "react-leaflet";
@@ -91,6 +92,28 @@ export default function AdminMap() {
   const [timeRange, setTimeRange] = useState("7days");
   const { toast } = useToast();
 
+  const [showPatrols, setShowPatrols] = useState(false);
+  const [patrolLocations, setPatrolLocations] = useState([
+    { id: 'p1', lat: -17.8220, lng: 31.0520, type: 'police', name: 'ZRP Patrol 4' },
+    { id: 'p2', lat: -17.8260, lng: 31.0480, type: 'maintenance', name: 'Roads Team A' },
+    { id: 'p3', lat: -17.8190, lng: 31.0440, type: 'water', name: 'Water Response Unit' },
+  ]);
+
+  // Simulate live patrol movement
+  useEffect(() => {
+    if (!showPatrols) return;
+    
+    const interval = setInterval(() => {
+      setPatrolLocations(prev => prev.map(p => ({
+        ...p,
+        lat: p.lat + (Math.random() - 0.5) * 0.001,
+        lng: p.lng + (Math.random() - 0.5) * 0.001,
+      })));
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [showPatrols]);
+
   const filters = ['All', 'Roads', 'Water', 'Sewer', 'Lights', 'Waste'];
 
   const filteredIssues = useMemo(() => {
@@ -153,6 +176,19 @@ export default function AdminMap() {
                     Heatmap
                   </Label>
                 </div>
+
+                 {/* Patrols Toggle */}
+                 <div className="flex items-center space-x-2 border-l pl-4 border-gray-200">
+                  <Switch 
+                    id="patrol-mode" 
+                    checked={showPatrols} 
+                    onCheckedChange={setShowPatrols}
+                  />
+                  <Label htmlFor="patrol-mode" className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                    <Car size={16} className={showPatrols ? "text-blue-600" : "text-gray-400"} />
+                    Live Patrols
+                  </Label>
+                </div>
               </div>
             </div>
             
@@ -193,6 +229,40 @@ export default function AdminMap() {
             />
             
             <MapUpdater center={mapCenter} />
+
+            {/* Patrol Markers */}
+            {showPatrols && patrolLocations.map(patrol => (
+              <Marker
+                key={patrol.id}
+                position={[patrol.lat, patrol.lng]}
+                icon={L.divIcon({
+                  className: "patrol-icon",
+                  html: `<div style="
+                    background-color: ${patrol.type === 'police' ? '#1e40af' : patrol.type === 'maintenance' ? '#ea580c' : '#0ea5e9'};
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    border: 2px solid white;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                    color: white;
+                  ">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${patrol.type === 'police' ? '<path d="M14.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M20.5 10c-.83 0-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5z"/><path d="M9.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S8 21.33 8 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M3.5 14c.83 0 1.5.67 1.5 1.5v5c0 .83-.67 1.5-1.5 1.5S2 21.33 2 20.5v-5c0-.83.67-1.5 1.5-1.5z"/><path d="M14 14.5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2z"/>' : '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/>'}</svg>
+                  </div>`,
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 16],
+                })}
+              >
+                <Popup className="font-sans">
+                  <div className="p-1">
+                    <p className="font-bold text-sm">{patrol.name}</p>
+                    <p className="text-xs text-gray-500 capitalize">{patrol.type} Unit • Active</p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
 
             {/* Render Heatmap Circles or Standard Markers */}
             {showHeatmap ? (
@@ -272,11 +342,18 @@ export default function AdminMap() {
                       </div>
                     </div>
 
-                    <div className="pt-2">
-                       <Button className="w-full" onClick={() => toast({ title: "Opening Report", description: `Report #${selectedIssue.id}` })}>
-                         View Full Details
-                         <ChevronRight size={16} className="ml-2" />
-                       </Button>
+                    <div className="pt-2 flex gap-2">
+                       <Link href={`/admin/issue/${selectedIssue.id}`} className="flex-1">
+                         <Button className="w-full">
+                           View Full Details
+                           <ChevronRight size={16} className="ml-2" />
+                         </Button>
+                       </Link>
+                       <Link href={`/admin/issue/${selectedIssue.id}?action=assign`}>
+                         <Button variant="outline" size="icon" title="Quick Assign">
+                           <UserPlus size={16} />
+                         </Button>
+                       </Link>
                     </div>
                   </div>
                 </CardContent>
