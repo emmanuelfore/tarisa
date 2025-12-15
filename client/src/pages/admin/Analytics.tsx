@@ -67,6 +67,22 @@ const PERFORMANCE_METRICS = [
   { label: "Pending Backlog", value: "142", change: "+12", trend: "down" }, // up is bad
 ];
 
+const DETAILED_CATEGORY_DATA = [
+  { name: 'Water', critical: 12, high: 25, medium: 40, low: 15 },
+  { name: 'Roads', critical: 8, high: 30, medium: 20, low: 10 },
+  { name: 'Waste', critical: 5, high: 15, medium: 45, low: 20 },
+  { name: 'Power', critical: 15, high: 20, medium: 10, low: 5 },
+  { name: 'Police', critical: 2, high: 5, medium: 15, low: 30 },
+];
+
+const DEPARTMENT_PERFORMANCE = [
+  { name: 'Water & Sanitation', resolved: 145, pending: 32, avgTime: 4.5 },
+  { name: 'Roads & Works', resolved: 98, pending: 45, avgTime: 12.0 },
+  { name: 'Waste Management', resolved: 210, pending: 15, avgTime: 2.1 },
+  { name: 'ZESA (Power)', resolved: 85, pending: 40, avgTime: 6.8 },
+  { name: 'ZRP (Traffic)', resolved: 120, pending: 10, avgTime: 1.5 },
+];
+
 export default function AdminAnalytics() {
   const { toast } = useToast();
   const [period, setPeriod] = useState("this_month");
@@ -197,33 +213,71 @@ export default function AdminAnalytics() {
           </TabsContent>
 
           <TabsContent value="categories" className="mt-6">
-             <Card>
-              <CardHeader>
-                <CardTitle>Detailed Category Breakdown</CardTitle>
-                <CardDescription>Deep dive into specific issue types and their resolution times.</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[400px] flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-lg m-6">
-                <div className="text-center">
-                  <Activity size={48} className="mx-auto mb-4 opacity-20" />
-                  <p>Detailed category analytics would appear here.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Issue Severity by Category</CardTitle>
+                  <CardDescription>Breakdown of active issues by severity level across different service categories.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={DETAILED_CATEGORY_DATA} layout="vertical" margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" width={100} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="critical" name="Critical" stackId="a" fill="#ef4444" />
+                      <Bar dataKey="high" name="High" stackId="a" fill="#f97316" />
+                      <Bar dataKey="medium" name="Medium" stackId="a" fill="#eab308" />
+                      <Bar dataKey="low" name="Low" stackId="a" fill="#22c55e" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="departments" className="mt-6">
-             <Card>
-              <CardHeader>
-                <CardTitle>Departmental Efficiency</CardTitle>
-                <CardDescription>Response times and backlog per department.</CardDescription>
-              </CardHeader>
-               <CardContent className="h-[400px] flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-100 rounded-lg m-6">
-                <div className="text-center">
-                  <Activity size={48} className="mx-auto mb-4 opacity-20" />
-                  <p>Departmental performance metrics would appear here.</p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Workload vs. Backlog</CardTitle>
+                  <CardDescription>Resolved vs Pending issues per department.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={DEPARTMENT_PERFORMANCE}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" angle={-15} textAnchor="end" height={60} interval={0} fontSize={12} />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="resolved" name="Resolved Issues" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="pending" name="Pending Issues" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Average Response Time</CardTitle>
+                  <CardDescription>Average time (in hours) to resolve reported issues.</CardDescription>
+                </CardHeader>
+                <CardContent className="h-[350px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={DEPARTMENT_PERFORMANCE} layout="vertical" margin={{ left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis type="number" unit="h" />
+                      <YAxis dataKey="name" type="category" width={120} fontSize={12} />
+                      <Tooltip formatter={(value) => [`${value} hours`, 'Avg Time']} />
+                      <Bar dataKey="avgTime" name="Avg Response Time" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
