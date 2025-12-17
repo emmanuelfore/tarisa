@@ -1,5 +1,5 @@
 import {
-  citizens, departments, staff, issues, comments, timeline, broadcasts, users,
+  citizens, departments, staff, issues, comments, timeline, broadcasts, users, credits,
   type Citizen, type InsertCitizen,
   type Department, type InsertDepartment,
   type Staff, type InsertStaff,
@@ -7,9 +7,11 @@ import {
   type Comment, type InsertComment,
   type Timeline, type InsertTimeline,
   type Broadcast, type InsertBroadcast,
+  type Credit, type InsertCredit,
   type User, type InsertUser,
   ESCALATION_HIERARCHY,
   type EscalationLevel,
+  CREDIT_VALUES,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, sql, gte, lte, inArray } from "drizzle-orm";
@@ -18,6 +20,7 @@ export interface IStorage {
   // Citizens
   getCitizen(id: number): Promise<Citizen | undefined>;
   getCitizenByEmail(email: string): Promise<Citizen | undefined>;
+  getOrCreateAnonymousCitizen(): Promise<Citizen>;
   createCitizen(citizen: InsertCitizen): Promise<Citizen>;
   updateCitizen(id: number, data: Partial<InsertCitizen>): Promise<Citizen | undefined>;
   listCitizens(): Promise<Citizen[]>;
@@ -61,6 +64,11 @@ export interface IStorage {
   createBroadcast(broadcast: InsertBroadcast): Promise<Broadcast>;
   listBroadcasts(limit?: number): Promise<Broadcast[]>;
 
+  // Credits
+  awardCredits(citizenId: number, amount: number, reason: string, issueId?: number): Promise<Credit>;
+  getCitizenCredits(citizenId: number): Promise<number>;
+  listCreditHistory(citizenId: number): Promise<Credit[]>;
+
   // Admin Users
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -91,6 +99,23 @@ export class DatabaseStorage implements IStorage {
   async getCitizenByEmail(email: string): Promise<Citizen | undefined> {
     const [citizen] = await db.select().from(citizens).where(eq(citizens.email, email));
     return citizen || undefined;
+  }
+
+  async getOrCreateAnonymousCitizen(): Promise<Citizen> {
+    const anonymousEmail = "anonymous@tarisa.gov.zw";
+    let citizen = await this.getCitizenByEmail(anonymousEmail);
+    if (!citizen) {
+      citizen = await this.createCitizen({
+        name: "Anonymous Citizen",
+        email: anonymousEmail,
+        phone: "N/A",
+        address: "N/A",
+        ward: "N/A",
+        emailVerified: true,
+        status: "verified",
+      });
+    }
+    return citizen;
   }
 
   async createCitizen(insertCitizen: InsertCitizen): Promise<Citizen> {
@@ -168,6 +193,25 @@ export class DatabaseStorage implements IStorage {
 
     const photosArray: string[] = Array.isArray(insertIssue.photos) ? [...insertIssue.photos] : [];
 
+    // Auto-assign department based on category (lookup by name pattern)
+    let autoAssignedDepartmentId = insertIssue.assignedDepartmentId ?? null;
+    
+    if (!autoAssignedDepartmentId) {
+      const categoryToNamePattern: Record<string, string> = {
+        'water': 'Water',
+        'roads': 'Roads',
+        'sewer': 'Sewer',
+        'lights': 'Lights',
+        'waste': 'Waste',
+      };
+      const pattern = categoryToNamePattern[insertIssue.category.toLowerCase()];
+      if (pattern) {
+        const allDepts = await this.listDepartments();
+        const matchingDept = allDepts.find(d => d.name.toLowerCase().includes(pattern.toLowerCase()));
+        autoAssignedDepartmentId = matchingDept?.id ?? null;
+      }
+    }
+
     const [issue] = await db.insert(issues).values({
       title: insertIssue.title,
       description: insertIssue.description,
@@ -180,7 +224,7 @@ export class DatabaseStorage implements IStorage {
       priority: insertIssue.priority ?? 'medium',
       severity: insertIssue.severity ?? 50,
       escalationLevel: insertIssue.escalationLevel ?? 'L1',
-      assignedDepartmentId: insertIssue.assignedDepartmentId ?? null,
+      assignedDepartmentId: autoAssignedDepartmentId,
       assignedStaffId: insertIssue.assignedStaffId ?? null,
       photos: photosArray,
     }).returning();
@@ -192,6 +236,39 @@ export class DatabaseStorage implements IStorage {
       description: 'Issue reported by citizen',
       user: 'System',
     });
+
+    // Add timeline entry for auto-assignment if department was assigned
+    if (autoAssignedDepartmentId && !insertIssue.assignedDepartmentId) {
+      const dept = await this.getDepartment(autoAssignedDepartmentId);
+      await this.createTimeline({
+        issueId: issue.id,
+        type: 'assigned',
+        title: 'Auto-Assigned to Department',
+        description: `Automatically assigned to ${dept?.name || 'department'} based on category`,
+        user: 'System',
+      });
+    }
+
+    // Award credits for registered citizens (not anonymous)
+    const citizen = await this.getCitizen(insertIssue.citizenId);
+    if (citizen && citizen.email !== "anonymous@tarisa.gov.zw") {
+      await this.awardCredits(
+        citizen.id,
+        CREDIT_VALUES.report_submitted,
+        'report_submitted',
+        issue.id
+      );
+      
+      // Bonus for including photos
+      if (photosArray.length > 0) {
+        await this.awardCredits(
+          citizen.id,
+          CREDIT_VALUES.report_photo,
+          'report_photo',
+          issue.id
+        );
+      }
+    }
 
     return issue;
   }
@@ -322,6 +399,33 @@ export class DatabaseStorage implements IStorage {
 
   async listBroadcasts(limit = 50): Promise<Broadcast[]> {
     return await db.select().from(broadcasts).orderBy(desc(broadcasts.createdAt)).limit(limit);
+  }
+
+  // Credits
+  async awardCredits(citizenId: number, amount: number, reason: string, issueId?: number): Promise<Credit> {
+    const [credit] = await db.insert(credits).values({
+      citizenId,
+      amount,
+      reason,
+      issueId: issueId ?? null,
+    }).returning();
+    return credit;
+  }
+
+  async getCitizenCredits(citizenId: number): Promise<number> {
+    const result = await db
+      .select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
+      .from(credits)
+      .where(eq(credits.citizenId, citizenId));
+    return Number(result[0]?.total ?? 0);
+  }
+
+  async listCreditHistory(citizenId: number): Promise<Credit[]> {
+    return await db
+      .select()
+      .from(credits)
+      .where(eq(credits.citizenId, citizenId))
+      .orderBy(desc(credits.createdAt));
   }
 
   // Admin Users

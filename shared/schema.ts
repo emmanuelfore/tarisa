@@ -148,6 +148,27 @@ export const broadcasts = pgTable("broadcasts", {
   sentAt: timestamp("sent_at"),
 });
 
+// CivicCredits rewards system
+export const credits = pgTable("credits", {
+  id: serial("id").primaryKey(),
+  citizenId: integer("citizen_id").references(() => citizens.id).notNull(),
+  amount: integer("amount").notNull(),
+  reason: text("reason").notNull(), // report_submitted, report_resolved, verification_bonus, etc.
+  issueId: integer("issue_id").references(() => issues.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const creditsRelations = relations(credits, ({ one }) => ({
+  citizen: one(citizens, {
+    fields: [credits.citizenId],
+    references: [citizens.id],
+  }),
+  issue: one(issues, {
+    fields: [credits.issueId],
+    references: [issues.id],
+  }),
+}));
+
 // Admin users with role-based access control
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -209,6 +230,11 @@ export const insertBroadcastSchema = createInsertSchema(broadcasts).omit({
   sentAt: true,
 });
 
+export const insertCreditSchema = createInsertSchema(credits).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
@@ -255,5 +281,16 @@ export type InsertTimeline = z.infer<typeof insertTimelineSchema>;
 export type Broadcast = typeof broadcasts.$inferSelect;
 export type InsertBroadcast = z.infer<typeof insertBroadcastSchema>;
 
+export type Credit = typeof credits.$inferSelect;
+export type InsertCredit = z.infer<typeof insertCreditSchema>;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+// Credit point values
+export const CREDIT_VALUES = {
+  report_submitted: 5,
+  report_resolved: 10,
+  verification_bonus: 3,
+  report_photo: 2,
+} as const;

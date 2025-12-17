@@ -2,7 +2,41 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import session from "express-session";
 import bcrypt from "bcrypt";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { storage } from "./storage";
+
+// Setup multer for photo uploads
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const photoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'issue-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: photoStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 import {
   insertCitizenSchema,
   insertDepartmentSchema,
@@ -341,6 +375,66 @@ export async function registerRoutes(
     }
   });
 
+  // Anonymous issue submission (for elderly/ICT-challenged users)
+  app.post("/api/issues/anonymous", async (req, res) => {
+    try {
+      const { title, description, category, location, coordinates, priority, severity, photos } = req.body;
+      
+      if (!title || !description || !category || !location) {
+        return res.status(400).json({ error: "Title, description, category, and location are required" });
+      }
+
+      // Get or create the anonymous citizen
+      const anonymousCitizen = await storage.getOrCreateAnonymousCitizen();
+      
+      const issue = await storage.createIssue({
+        title,
+        description,
+        category,
+        location,
+        coordinates: coordinates || null,
+        priority: priority || "medium",
+        severity: severity || 50,
+        citizenId: anonymousCitizen.id,
+        photos: photos || [],
+      });
+      
+      res.status(201).json({ 
+        trackingId: issue.trackingId,
+        message: "Anonymous report submitted successfully. Save your tracking ID to check status."
+      });
+    } catch (error) {
+      console.error("Anonymous submission error:", error);
+      res.status(500).json({ error: "Failed to submit anonymous report" });
+    }
+  });
+
+  // Photo upload endpoint
+  app.post("/api/upload/photo", upload.array('photos', 5), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+      
+      const urls = files.map(file => `/uploads/${file.filename}`);
+      res.json({ urls, message: `Successfully uploaded ${files.length} photo(s)` });
+    } catch (error) {
+      console.error("Photo upload error:", error);
+      res.status(500).json({ error: "Failed to upload photos" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', (req, res, next) => {
+    const filePath = path.join(uploadDir, req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ error: "File not found" });
+    }
+  });
+
   app.get("/api/issues/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -524,6 +618,27 @@ export async function registerRoutes(
       res.status(201).json(broadcast);
     } catch (error) {
       res.status(500).json({ error: "Failed to create broadcast" });
+    }
+  });
+
+  // ============ CREDITS ROUTES ============
+  app.get("/api/citizens/:id/credits", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const total = await storage.getCitizenCredits(id);
+      res.json({ citizenId: id, totalCredits: total });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch credits" });
+    }
+  });
+
+  app.get("/api/citizens/:id/credits/history", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const history = await storage.listCreditHistory(id);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch credit history" });
     }
   });
 

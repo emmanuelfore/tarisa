@@ -63,6 +63,7 @@ async function seed() {
   console.log(`Created ${createdStaff.length} staff members`);
 
   const citizenData = [
+    { name: "Anonymous Citizen", email: "anonymous@tarisa.gov.zw", phone: "N/A", address: "N/A", ward: "N/A", emailVerified: true, status: "verified" },
     { name: "Tendai Makoni", email: "tendai.makoni@gmail.com", phone: "+263 77 111 2222", address: "123 Samora Machel Ave", ward: "Ward 1", emailVerified: true, status: "verified" },
     { name: "Rumbidzai Chigumba", email: "rchigumba@yahoo.com", phone: "+263 77 222 3333", address: "45 Robert Mugabe Road", ward: "Ward 3", emailVerified: true, status: "verified" },
     { name: "Farai Mutamba", email: "f.mutamba@outlook.com", phone: "+263 77 333 4444", address: "78 Julius Nyerere Way", ward: "Ward 7", emailVerified: false, status: "pending" },

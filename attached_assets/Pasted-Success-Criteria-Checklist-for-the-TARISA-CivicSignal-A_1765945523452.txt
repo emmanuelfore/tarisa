@@ -1,0 +1,52 @@
+Success Criteria Checklist for the TARISA CivicSignal App— focusing on fault/damage reporting, accidents, and emergency services, with integration for municipality response:
+
+✅ Success Criteria for TARISA CivicSignal App
+
+1. User Functionality
+- [ ] Users can register and create an account (email/phone verification).
+- Also allows non-account holders to send reports, this to encompass illiterate ICT users like the elderly to participate without much hustle.
+- Only registered account holders shall have credits or rewards in their account for reporting 
+- [ ] Users can log in/log out securely.
+- [ ] Users can reset forgotten passwords.
+- [ ] Users can update personal information and location.
+
+2. Reporting Features
+- [ ] Users can submit a fault/damage report (potholes, burst pipes, lights out, etc.).
+- [ ] Users can report an accident or emergency.
+- [ ] Users can upload photos or videos with reports.
+- [ ] Users can select/report GPS location or auto-tag location.
+- [ ] Reports include category selection (e.g. Road, Water, Fire, Police, Electricity).
+- The user should have access to report dashboard showing other reports and success stories of repairs.
+
+
+3. System & Admin Functionality
+- [ ] Each report is timestamped automatically.
+- [ ] Reports are assigned automatically to relevant departments based on category.
+- [ ] Admin dashboard shows live incoming reports and status.
+- [ ] Admin can re-assign or escalate reports.
+- [ ] Response time and report status tracking (open, in-progress, resolved).
+- The application should also allow for advertising and information dissemination by other interested parties or companies supporting social responsibility and community building 
+
+4. Notifications & Feedback
+- [ ] Users receive confirmation of report submission.
+[15/12, 16:53] Cosmas Samaz: - [ ] Users receive status updates of their report via app/SMS/email.
+- [ ] Admins can send feedback or updates directly to users.
+
+5. Data & Reporting
+- [ ] System logs all reports and responses with timestamps.
+- [ ] Admins can download reports (daily/weekly/monthly).
+- [ ] Analytical dashboard for trends, hotspots, and frequency.
+
+6. Integration & Access
+- [ ] Admin panel accessible by Municipality/Local Government.
+- [ ] Data can be exported for external systems (CSV, PDF).
+- [ ] Secure login for different admin departments.
+
+7. Performance & UI
+- [ ] App runs smoothly with minimal crashes.
+- [ ] Fast image/video upload with compression.
+- [ ] Clear and simple user interface with guidance text.
+
+8. Compliance & Security
+- [ ] User data is stored securely and encrypted.
+- [ ] Follows Zimbabwe’s data protection and PVO guidelines.
