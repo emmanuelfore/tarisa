@@ -652,5 +652,142 @@ export async function registerRoutes(
     }
   });
 
+  // ============ EXPORT ROUTES ============
+  app.get("/api/export/issues", requireRole("super_admin", "admin", "manager"), async (req, res) => {
+    try {
+      const { format } = req.query;
+      const issues = await storage.listIssues();
+      const departments = await storage.listDepartments();
+      const staff = await storage.listStaff();
+
+      // Enrich issues with department and staff names
+      const enrichedIssues = issues.map(issue => {
+        const dept = departments.find(d => d.id === issue.assignedDepartmentId);
+        const staffMember = staff.find(s => s.id === issue.assignedStaffId);
+        return {
+          ...issue,
+          departmentName: dept?.name || "Unassigned",
+          staffName: staffMember?.name || "Unassigned",
+        };
+      });
+
+      if (format === "csv") {
+        const headers = ["Tracking ID", "Title", "Category", "Location", "Status", "Priority", "Escalation", "Department", "Staff", "Created"];
+        const rows = enrichedIssues.map(issue => [
+          issue.trackingId,
+          `"${issue.title.replace(/"/g, '""')}"`,
+          issue.category,
+          `"${issue.location.replace(/"/g, '""')}"`,
+          issue.status,
+          issue.priority,
+          issue.escalationLevel,
+          `"${issue.departmentName}"`,
+          `"${issue.staffName}"`,
+          issue.createdAt ? new Date(issue.createdAt).toISOString().split("T")[0] : "",
+        ]);
+        
+        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename=tarisa-issues-${new Date().toISOString().split("T")[0]}.csv`);
+        return res.send(csvContent);
+      }
+
+      // Default: return JSON
+      res.json(enrichedIssues);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to export issues" });
+    }
+  });
+
+  // Generate HTML report for printing/PDF (protected)
+  app.get("/api/export/report", requireRole("super_admin", "admin", "manager"), async (req, res) => {
+    try {
+      const issues = await storage.listIssues();
+      const analytics = await storage.getAnalytics();
+      const departments = await storage.listDepartments();
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TARISA Issues Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    h1 { color: #1a365d; border-bottom: 2px solid #1a365d; padding-bottom: 10px; }
+    .summary { display: flex; gap: 20px; margin-bottom: 30px; }
+    .stat { background: #f0f4f8; padding: 20px; border-radius: 8px; text-align: center; }
+    .stat h2 { margin: 0; font-size: 32px; color: #1a365d; }
+    .stat p { margin: 5px 0 0; color: #666; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+    th { background: #1a365d; color: white; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .status-submitted { background: #fef3c7; color: #92400e; }
+    .status-in_progress { background: #dbeafe; color: #1e40af; }
+    .status-resolved { background: #d1fae5; color: #065f46; }
+    .status-verified { background: #e0e7ff; color: #3730a3; }
+    .footer { margin-top: 40px; text-align: center; color: #666; font-size: 12px; }
+    @media print { body { margin: 20px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>TARISA CivicSignal - Issues Report</h1>
+  <p>Generated: ${new Date().toLocaleString()}</p>
+  
+  <div class="summary">
+    <div class="stat"><h2>${analytics.totalIssues}</h2><p>Total Reports</p></div>
+    <div class="stat"><h2>${analytics.resolvedIssues}</h2><p>Resolved</p></div>
+    <div class="stat"><h2>${analytics.pendingIssues}</h2><p>Pending</p></div>
+  </div>
+  
+  <h2>All Issues (${issues.length})</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Tracking ID</th>
+        <th>Title</th>
+        <th>Category</th>
+        <th>Location</th>
+        <th>Status</th>
+        <th>Priority</th>
+        <th>Escalation</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${issues.map(issue => `
+        <tr>
+          <td>${issue.trackingId}</td>
+          <td>${issue.title}</td>
+          <td>${issue.category}</td>
+          <td>${issue.location}</td>
+          <td><span class="status status-${issue.status}">${issue.status.replace('_', ' ').toUpperCase()}</span></td>
+          <td>${issue.priority}</td>
+          <td>${issue.escalationLevel}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+  
+  <div class="footer">
+    <p>City of Harare - TARISA CivicSignal Platform</p>
+  </div>
+  
+  <script class="no-print">
+    // Auto-print when opened for PDF generation
+    if (window.location.search.includes('print=true')) {
+      window.onload = () => window.print();
+    }
+  </script>
+</body>
+</html>`;
+      
+      res.setHeader("Content-Type", "text/html");
+      res.send(html);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
   return httpServer;
 }

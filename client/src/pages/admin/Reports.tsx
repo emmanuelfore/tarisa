@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,9 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Select,
@@ -25,7 +23,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -43,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { 
   Search, 
@@ -51,25 +48,14 @@ import {
   MoreHorizontal, 
   UserPlus, 
   AlertCircle, 
-  CheckCircle2, 
-  Clock, 
   ArrowUpRight,
-  Building2,
-  Phone,
   Siren,
-  User
+  User,
+  Loader2,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock Data - Zimbabwean Context
-const DEPARTMENTS = [
-  { id: "coh_water", name: "CoH - Water & Sanitation", type: "Municipal" },
-  { id: "coh_roads", name: "CoH - Roads & Works", type: "Municipal" },
-  { id: "coh_waste", name: "CoH - Waste Management", type: "Municipal" },
-  { id: "zesa", name: "ZESA - Faults", type: "Parastatal" },
-  { id: "zrp", name: "ZRP - Traffic", type: "Police" },
-  { id: "mot", name: "Min. of Transport", type: "Government" },
-];
+import type { Issue, Department, Staff } from "@shared/schema";
 
 const ESCALATION_LEVELS = [
   { id: "L1", name: "Level 1: Ward Team", color: "bg-blue-100 text-blue-700" },
@@ -78,143 +64,179 @@ const ESCALATION_LEVELS = [
   { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
 ];
 
-const MOCK_STAFF = [
-  { id: "S1", name: "Eng. T. Moyo", role: "Department Head", departmentId: "coh_water" },
-  { id: "S2", name: "Sgt. P. Banda", role: "Officer", departmentId: "zrp" },
-  { id: "S3", name: "Mrs. C. Gumbo", role: "Dispatcher", departmentId: "zesa" },
-  { id: "S4", name: "Mr. K. Ndlovu", role: "Admin", departmentId: "coh_roads" },
-  { id: "S5", name: "Mr. T. Chiwenga", role: "Inspector", departmentId: "coh_waste" },
-  { id: "S6", name: "Ms. R. Mutasa", role: "Official", departmentId: "mot" },
-];
-
-const INITIAL_REPORTS = [
-  {
-    id: "TAR-2025-0042",
-    title: "Deep Pothole on Samora Machel",
-    category: "Roads",
-    location: "Samora Machel Ave, near 4th St",
-    status: "submitted",
-    priority: "High",
-    date: "2025-12-11",
-    reporter: "Tatenda P.",
-    assignedTo: null as string | null,
-    assignedStaff: null as string | null,
-    escalation: "L1",
-    description: "Large pothole causing traffic backup. Dangerous for small cars."
-  },
-  {
-    id: "TAR-2025-0041",
-    title: "Burst Pipe - Water Loss",
-    category: "Water",
-    location: "45 Borrowdale Rd",
-    status: "in_progress",
-    priority: "Critical",
-    date: "2025-12-10",
-    reporter: "Sarah M.",
-    assignedTo: "CoH - Water & Sanitation" as string | null,
-    assignedStaff: "Eng. T. Moyo" as string | null,
-    escalation: "L2",
-    description: "Main water line burst. Water flowing into the street for 4 hours."
-  },
-  {
-    id: "TAR-2025-0038",
-    title: "Street Lights Out",
-    category: "Lights",
-    location: "Westgate Area",
-    status: "resolved",
-    priority: "Medium",
-    date: "2025-12-09",
-    reporter: "John D.",
-    assignedTo: "ZESA - Faults" as string | null,
-    assignedStaff: "Mrs. C. Gumbo" as string | null,
-    escalation: "L1",
-    description: "Entire street is dark. Security risk."
-  },
-  {
-    id: "TAR-2025-0035",
-    title: "Uncollected Refuse",
-    category: "Waste",
-    location: "Mbare Musika",
-    status: "verified",
-    priority: "High",
-    date: "2025-12-09",
-    reporter: "Grace K.",
-    assignedTo: null as string | null,
-    assignedStaff: null as string | null,
-    escalation: "L1",
-    description: "Garbage has not been collected for 2 weeks. Health hazard."
-  },
-  {
-    id: "TAR-2025-0032",
-    title: "Traffic Light Malfunction",
-    category: "Roads",
-    location: "Julius Nyerere / Jason Moyo",
-    status: "submitted",
-    priority: "Critical",
-    date: "2025-12-08",
-    reporter: "Blessing T.",
-    assignedTo: null as string | null,
-    assignedStaff: null as string | null,
-    escalation: "L1",
-    description: "Traffic lights stuck on red for all directions."
-  },
-];
-
 export default function AdminReports() {
-  const [reports, setReports] = useState(INITIAL_REPORTS);
-  const [selectedReport, setSelectedReport] = useState<typeof INITIAL_REPORTS[0] | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [selectedReport, setSelectedReport] = useState<Issue | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("");
   const [selectedStaff, setSelectedStaff] = useState("");
-  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const handleAssignClick = (report: typeof INITIAL_REPORTS[0]) => {
+  // Fetch issues
+  const { data: issues = [], isLoading: issuesLoading } = useQuery<Issue[]>({
+    queryKey: ["/api/issues"],
+    queryFn: async () => {
+      const res = await fetch("/api/issues", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch issues");
+      return res.json();
+    },
+  });
+
+  // Fetch departments
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
+    queryFn: async () => {
+      const res = await fetch("/api/departments");
+      if (!res.ok) throw new Error("Failed to fetch departments");
+      return res.json();
+    },
+  });
+
+  // Fetch staff
+  const { data: allStaff = [] } = useQuery<Staff[]>({
+    queryKey: ["/api/staff"],
+    queryFn: async () => {
+      const res = await fetch("/api/staff");
+      if (!res.ok) throw new Error("Failed to fetch staff");
+      return res.json();
+    },
+  });
+
+  // Filter issues based on search and status
+  const filteredIssues = useMemo(() => {
+    return issues.filter(issue => {
+      const matchesSearch = searchQuery === "" || 
+        issue.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        issue.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        issue.category.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || issue.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+  }, [issues, searchQuery, statusFilter]);
+
+  // Assign mutation
+  const assignMutation = useMutation({
+    mutationFn: async ({ issueId, departmentId, staffId, escalationLevel }: { 
+      issueId: number; 
+      departmentId: number | null; 
+      staffId: number | null;
+      escalationLevel: string 
+    }) => {
+      const res = await fetch(`/api/issues/${issueId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ departmentId, staffId, escalationLevel }),
+      });
+      if (!res.ok) throw new Error("Failed to assign issue");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/issues"] });
+      toast({
+        title: "Task Assigned Successfully",
+        description: "The issue has been assigned.",
+      });
+      setAssignDialogOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Assignment Failed",
+        description: "Could not assign the issue. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAssignClick = (report: Issue) => {
     setSelectedReport(report);
-    // Find department ID from name if possible, or reset
-    const deptId = DEPARTMENTS.find(d => d.name === report.assignedTo)?.id || "";
-    setSelectedDept(deptId);
-    setSelectedLevel(report.escalation);
-    setSelectedStaff(report.assignedStaff || "");
+    setSelectedDept(report.assignedDepartmentId?.toString() || "");
+    setSelectedStaff(report.assignedStaffId?.toString() || "");
+    setSelectedLevel(report.escalationLevel);
     setAssignDialogOpen(true);
   };
 
   const handleConfirmAssign = () => {
     if (!selectedReport) return;
-
-    const deptName = DEPARTMENTS.find(d => d.id === selectedDept)?.name || selectedDept;
-    const staffName = MOCK_STAFF.find(s => s.id === selectedStaff)?.name || null;
-
-    setReports(reports.map(r => 
-      r.id === selectedReport.id 
-        ? { 
-            ...r, 
-            assignedTo: deptName, 
-            assignedStaff: staffName as string | null,
-            escalation: selectedLevel, 
-            status: 'in_progress' 
-          } 
-        : r
-    ));
-
-    toast({
-      title: "Task Assigned Successfully",
-      description: `Report #${selectedReport.id} assigned to ${staffName ? staffName : deptName}.`,
+    assignMutation.mutate({
+      issueId: selectedReport.id,
+      departmentId: selectedDept ? parseInt(selectedDept) : null,
+      staffId: selectedStaff ? parseInt(selectedStaff) : null,
+      escalationLevel: selectedLevel || selectedReport.escalationLevel,
     });
-    setAssignDialogOpen(false);
   };
 
-  const handleEscalate = (report: typeof INITIAL_REPORTS[0]) => {
-     toast({
-      title: "Escalation Triggered",
-      description: `Report #${report.id} has been flagged for Director attention.`,
-      variant: "destructive",
-    });
+  const handleEscalate = async (report: Issue) => {
+    try {
+      const res = await fetch(`/api/issues/${report.id}/escalate`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to escalate");
+      queryClient.invalidateQueries({ queryKey: ["/api/issues"] });
+      toast({
+        title: "Escalation Triggered",
+        description: `Report #${report.trackingId} has been escalated.`,
+        variant: "destructive",
+      });
+    } catch {
+      toast({
+        title: "Escalation Failed",
+        description: "Could not escalate the issue.",
+        variant: "destructive",
+      });
+    }
   };
 
   const availableStaff = useMemo(() => {
-    return MOCK_STAFF.filter(staff => staff.departmentId === selectedDept);
-  }, [selectedDept]);
+    if (!selectedDept) return [];
+    return allStaff.filter(staff => staff.departmentId === parseInt(selectedDept));
+  }, [selectedDept, allStaff]);
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    const headers = ["Tracking ID", "Title", "Category", "Location", "Status", "Priority", "Escalation", "Created"];
+    const rows = filteredIssues.map(issue => [
+      issue.trackingId,
+      issue.title,
+      issue.category,
+      issue.location,
+      issue.status,
+      issue.priority,
+      issue.escalationLevel,
+      issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "",
+    ]);
+    
+    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `tarisa-reports-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Export Complete",
+      description: `Exported ${filteredIssues.length} reports to CSV.`,
+    });
+  };
+
+  if (issuesLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -225,11 +247,11 @@ export default function AdminReports() {
             <p className="text-gray-500">Track, assign, and escalate citizen reports.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="gap-2">
-              <ArrowUpRight size={16} />
-              Export Sheet
+            <Button variant="outline" className="gap-2" onClick={handleExportCSV} data-testid="button-export">
+              <Download size={16} />
+              Export CSV
             </Button>
-            <Button className="gap-2">
+            <Button className="gap-2" data-testid="button-assign-teams">
               <UserPlus size={16} />
               Assign Teams
             </Button>
@@ -242,15 +264,33 @@ export default function AdminReports() {
             <div className="flex items-center gap-4 flex-1">
               <div className="relative w-full max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input placeholder="Search ID, location, or category..." className="pl-10" />
+                <Input 
+                  placeholder="Search ID, location, or category..." 
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-search"
+                />
               </div>
-              <Button variant="outline" className="gap-2">
-                <Filter size={16} />
-                Filter Status
-              </Button>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                  <Filter size={16} className="mr-2" />
+                  <SelectValue placeholder="Filter Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="submitted">Submitted</SelectItem>
+                  <SelectItem value="verified">Verified</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Showing 5 of 1,248 active issues</span>
+              <span className="text-sm text-gray-500">
+                Showing {filteredIssues.length} of {issues.length} issues
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -269,89 +309,103 @@ export default function AdminReports() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id} className="hover:bg-gray-50/50">
-                  <TableCell className="font-mono text-xs font-medium text-gray-500">
-                    {report.id}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-900">{report.title}</span>
-                      <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        <Badge variant="outline" className="text-[10px] h-4 px-1">{report.category}</Badge>
-                        • {report.location}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1.5">
-                      <StatusBadge status={report.status as any} />
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${
-                        report.priority === 'Critical' ? 'bg-red-100 text-red-700' :
-                        report.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {report.priority} Priority
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {report.assignedTo ? (
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                              {report.assignedTo.substring(0,2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm font-medium text-gray-700">{report.assignedTo}</span>
-                        </div>
-                        {report.assignedStaff && (
-                          <div className="flex items-center gap-1.5 ml-8">
-                             <User size={12} className="text-gray-400" />
-                             <span className="text-xs text-gray-500">{report.assignedStaff}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-400 italic">Unassigned</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className={`text-xs font-medium px-2 py-1 rounded inline-flex items-center gap-1.5 ${
-                       ESCALATION_LEVELS.find(l => l.id === report.escalation)?.color || "bg-gray-100 text-gray-600"
-                    }`}>
-                       {report.escalation === 'L4' && <Siren size={12} />}
-                       {ESCALATION_LEVELS.find(l => l.id === report.escalation)?.name || "Level 1"}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal size={16} />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Manage Issue</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleAssignClick(report)}>
-                          <UserPlus size={14} className="mr-2" /> Assign Team
-                        </DropdownMenuItem>
-                         <DropdownMenuItem onClick={() => handleEscalate(report)}>
-                          <AlertCircle size={14} className="mr-2" /> Escalate Issue
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <Link href={`/admin/issue/${report.id}`}>
-                          <DropdownMenuItem>
-                            View Full Details
-                          </DropdownMenuItem>
-                        </Link>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+              {filteredIssues.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-400">
+                    No issues found
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filteredIssues.map((report) => {
+                  const dept = departments.find(d => d.id === report.assignedDepartmentId);
+                  const staff = allStaff.find(s => s.id === report.assignedStaffId);
+                  
+                  return (
+                    <TableRow key={report.id} className="hover:bg-gray-50/50" data-testid={`row-report-${report.id}`}>
+                      <TableCell className="font-mono text-xs font-medium text-gray-500">
+                        {report.trackingId}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">{report.title}</span>
+                          <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1 capitalize">{report.category}</Badge>
+                            • {report.location}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1.5">
+                          <StatusBadge status={report.status as any} />
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${
+                            report.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                            report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                            report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {report.priority.charAt(0).toUpperCase() + report.priority.slice(1)} Priority
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {dept ? (
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                  {dept.name.substring(0,2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium text-gray-700">{dept.name}</span>
+                            </div>
+                            {staff && (
+                              <div className="flex items-center gap-1.5 ml-8">
+                                 <User size={12} className="text-gray-400" />
+                                 <span className="text-xs text-gray-500">{staff.name}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400 italic">Unassigned</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className={`text-xs font-medium px-2 py-1 rounded inline-flex items-center gap-1.5 ${
+                           ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.color || "bg-gray-100 text-gray-600"
+                        }`}>
+                           {report.escalationLevel === 'L4' && <Siren size={12} />}
+                           {ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.name || "Level 1"}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-menu-${report.id}`}>
+                              <MoreHorizontal size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Manage Issue</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleAssignClick(report)}>
+                              <UserPlus size={14} className="mr-2" /> Assign Team
+                            </DropdownMenuItem>
+                             <DropdownMenuItem onClick={() => handleEscalate(report)}>
+                              <AlertCircle size={14} className="mr-2" /> Escalate Issue
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <Link href={`/admin/issue/${report.id}`}>
+                              <DropdownMenuItem>
+                                View Full Details
+                              </DropdownMenuItem>
+                            </Link>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </Card>
@@ -378,14 +432,14 @@ export default function AdminReports() {
                 <label className="text-sm font-medium">Department / Authority</label>
                 <Select value={selectedDept} onValueChange={(val) => {
                   setSelectedDept(val);
-                  setSelectedStaff(""); // Reset staff when dept changes
+                  setSelectedStaff("");
                 }}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="dialog-select-department">
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent>
-                     {DEPARTMENTS.map(dept => (
-                       <SelectItem key={dept.id} value={dept.id}>
+                     {departments.map(dept => (
+                       <SelectItem key={dept.id} value={dept.id.toString()}>
                          <div className="flex items-center justify-between w-full">
                            <span>{dept.name}</span>
                            <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
@@ -406,7 +460,7 @@ export default function AdminReports() {
                   onValueChange={setSelectedStaff}
                   disabled={!selectedDept || availableStaff.length === 0}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="dialog-select-staff">
                     <SelectValue placeholder={
                       !selectedDept ? "Select a department first" :
                       availableStaff.length === 0 ? "No staff found for this department" :
@@ -415,7 +469,7 @@ export default function AdminReports() {
                   </SelectTrigger>
                   <SelectContent>
                      {availableStaff.map(staff => (
-                       <SelectItem key={staff.id} value={staff.id}>
+                       <SelectItem key={staff.id} value={staff.id.toString()}>
                          <div className="flex items-center gap-2">
                            <Avatar className="h-5 w-5">
                               <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
@@ -434,7 +488,7 @@ export default function AdminReports() {
               <div className="grid gap-2">
                 <label className="text-sm font-medium">Escalation Level</label>
                 <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                  <SelectTrigger>
+                  <SelectTrigger data-testid="dialog-select-escalation">
                     <SelectValue placeholder="Select Level" />
                   </SelectTrigger>
                   <SelectContent>
@@ -457,7 +511,10 @@ export default function AdminReports() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleConfirmAssign}>Confirm Assignment</Button>
+            <Button onClick={handleConfirmAssign} disabled={assignMutation.isPending} data-testid="button-dialog-confirm">
+              {assignMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm Assignment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
