@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,19 +7,19 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { 
-  ArrowUpRight, 
-  Clock, 
-  CheckCircle, 
+import {
+  ArrowUpRight,
+  Clock,
+  CheckCircle,
   AlertCircle,
   MapPin,
   MoreHorizontal,
@@ -126,11 +127,11 @@ export default function AdminDashboard() {
     },
   });
 
+  // useLocation hook from wouter for navigation
+  const [, setLocation] = useLocation();
+
   const handleViewReport = (id: number) => {
-    toast({
-      title: "Opening Report",
-      description: `Loading details for report #${id}...`,
-    });
+    setLocation(`/admin/reports/${id}`);
   };
 
   const handleAssignClick = (report: Issue) => {
@@ -174,9 +175,9 @@ export default function AdminDashboard() {
   // Build chart data from analytics
   const chartData = analytics?.categoryCounts
     ? Object.entries(analytics.categoryCounts).map(([name, count]) => ({
-        name: name.charAt(0).toUpperCase() + name.slice(1),
-        reports: count as number,
-      }))
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      reports: count as number,
+    }))
     : [];
 
   const recentIssues = issues.slice(0, 5);
@@ -296,19 +297,19 @@ export default function AdminDashboard() {
         {/* Heat Map Mini */}
         <Card className="overflow-hidden cursor-pointer group" onClick={() => toast({ title: "Live Map", description: "Opening fullscreen map..." })}>
           <CardHeader>
-             <CardTitle className="text-lg font-heading group-hover:text-primary transition-colors">Hotspots</CardTitle>
+            <CardTitle className="text-lg font-heading group-hover:text-primary transition-colors">Hotspots</CardTitle>
           </CardHeader>
           <CardContent className="p-0 relative h-[300px]">
-             <div 
+            <div
               className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
               style={{ backgroundImage: `url(${mapBg})` }}
             />
             <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors" />
-            
+
             {/* Heat Points */}
             <div className="absolute top-1/2 left-1/2 w-32 h-32 bg-red-500/30 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
             <div className="absolute top-1/3 left-1/3 w-24 h-24 bg-orange-500/30 rounded-full blur-xl" />
-            
+
             <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur rounded-lg p-3 shadow-lg">
               <div className="flex justify-between items-center text-sm">
                 <span className="font-medium">City of Harare</span>
@@ -355,12 +356,12 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 capitalize">{report.category}</td>
                         <td className="px-4 py-3">{report.location}</td>
                         <td className="px-4 py-3">
-                           {dept ? (
+                          {dept ? (
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
-                                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                    {dept.name.substring(0,2).toUpperCase()}
-                                  </AvatarFallback>
+                                <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                                  {dept.name.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
                               </Avatar>
                               <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">{dept.name}</span>
                             </div>
@@ -384,7 +385,7 @@ export default function AdminDashboard() {
                               <DropdownMenuItem onClick={() => handleAssignClick(report)}>
                                 <UserPlus size={14} className="mr-2" /> Assign Team
                               </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEscalate(report)}>
+                              <DropdownMenuItem onClick={() => handleEscalate(report)}>
                                 <AlertCircle size={14} className="mr-2" /> Escalate Issue
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -411,7 +412,7 @@ export default function AdminDashboard() {
               Select the responsible department and escalation level for this issue.
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedReport && (
             <div className="grid gap-4 py-4">
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
@@ -426,14 +427,14 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent>
-                      {departments.map(dept => (
-                        <SelectItem key={dept.id} value={dept.id.toString()}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{dept.name}</span>
-                            <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{dept.name}</span>
+                          <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -445,14 +446,14 @@ export default function AdminDashboard() {
                     <SelectValue placeholder="Select Level" />
                   </SelectTrigger>
                   <SelectContent>
-                      {ESCALATION_LEVELS.map(level => (
-                        <SelectItem key={level.id} value={level.id}>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
-                            <span>{level.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                    {ESCALATION_LEVELS.map(level => (
+                      <SelectItem key={level.id} value={level.id}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
+                          <span>{level.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-gray-500">

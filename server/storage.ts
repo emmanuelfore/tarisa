@@ -1,3 +1,4 @@
+
 import {
   citizens, departments, staff, issues, comments, timeline, broadcasts, users, credits,
   type Citizen, type InsertCitizen,
@@ -14,7 +15,7 @@ import {
   CREDIT_VALUES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, sql, gte, lte, inArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, gte, lte, inArray, count } from "drizzle-orm";
 
 export interface IStorage {
   // Citizens
@@ -36,6 +37,7 @@ export interface IStorage {
   createStaff(staff: InsertStaff): Promise<Staff>;
   listStaff(): Promise<Staff[]>;
   listStaffByDepartment(departmentId: number): Promise<Staff[]>;
+  updateStaff(id: number, data: Partial<InsertStaff>): Promise<Staff | undefined>;
 
   // Issues
   getIssue(id: number): Promise<Issue | undefined>;
@@ -51,6 +53,15 @@ export interface IStorage {
     endDate?: Date;
   }): Promise<Issue[]>;
   assignIssue(issueId: number, departmentId: number | null, staffId: number | null, escalationLevel: string): Promise<Issue | undefined>;
+
+  // Analytics
+  getAnalytics(): Promise<{
+    totalIssues: number;
+    resolvedIssues: number;
+    pendingIssues: number;
+    categoryCounts: Record<string, number>;
+    priorityCounts: Record<string, number>;
+  }>;
 
   // Comments
   createComment(comment: InsertComment): Promise<Comment>;
@@ -175,6 +186,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(staff).where(eq(staff.departmentId, departmentId));
   }
 
+  async updateStaff(id: number, data: Partial<InsertStaff>): Promise<Staff | undefined> {
+    const [staffMember] = await db.update(staff).set(data).where(eq(staff.id, id)).returning();
+    return staffMember || undefined;
+  }
+
   // Issues
   async getIssue(id: number): Promise<Issue | undefined> {
     const [issue] = await db.select().from(issues).where(eq(issues.id, id));
@@ -188,14 +204,14 @@ export class DatabaseStorage implements IStorage {
 
   async createIssue(insertIssue: InsertIssue): Promise<Issue> {
     const year = new Date().getFullYear();
-    const count = await db.select({ count: sql<number>`count(*)` }).from(issues);
-    const trackingId = `TAR-${year}-${String(Number(count[0].count) + 1).padStart(4, '0')}`;
+    const [issueCount] = await db.select({ count: count() }).from(issues);
+    const trackingId = `TAR - ${year} -${String(Number(issueCount.count) + 1).padStart(4, '0')} `;
 
     const photosArray: string[] = Array.isArray(insertIssue.photos) ? [...insertIssue.photos] : [];
 
     // Auto-assign department based on category (lookup by name pattern)
     let autoAssignedDepartmentId = insertIssue.assignedDepartmentId ?? null;
-    
+
     if (!autoAssignedDepartmentId) {
       const categoryToNamePattern: Record<string, string> = {
         'water': 'Water',
@@ -228,7 +244,7 @@ export class DatabaseStorage implements IStorage {
       assignedStaffId: insertIssue.assignedStaffId ?? null,
       photos: photosArray,
     }).returning();
-    
+
     await this.createTimeline({
       issueId: issue.id,
       type: 'created',
@@ -258,7 +274,7 @@ export class DatabaseStorage implements IStorage {
         'report_submitted',
         issue.id
       );
-      
+
       // Bonus for including photos
       if (photosArray.length > 0) {
         await this.awardCredits(
@@ -345,7 +361,7 @@ export class DatabaseStorage implements IStorage {
         issueId: issue.id,
         type: 'assigned',
         title: 'Issue Assigned',
-        description: `Assigned to department (escalation: ${escalationLevel})`,
+        description: `Assigned to department(escalation: ${escalationLevel})`,
         user: 'Admin',
       });
     }
@@ -356,7 +372,7 @@ export class DatabaseStorage implements IStorage {
   // Comments
   async createComment(insertComment: InsertComment): Promise<Comment> {
     const [comment] = await db.insert(comments).values(insertComment).returning();
-    
+
     // Add timeline entry
     await this.createTimeline({
       issueId: insertComment.issueId,

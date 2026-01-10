@@ -69,15 +69,15 @@ export const issues = pgTable("issues", {
   status: text("status").notNull().default("submitted"), // submitted, verified, in_progress, resolved, rejected
   priority: text("priority").notNull().default("medium"), // low, medium, high, critical
   severity: integer("severity").default(50), // 0-100 for heatmap
-  
+
   citizenId: integer("citizen_id").references(() => citizens.id).notNull(),
-  
+
   assignedDepartmentId: integer("assigned_department_id").references(() => departments.id),
   assignedStaffId: integer("assigned_staff_id").references(() => staff.id),
   escalationLevel: text("escalation_level").default("L1").notNull(), // L1-L4
-  
+
   photos: jsonb("photos").$type<string[]>().default([]),
-  
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
@@ -191,6 +191,25 @@ export const usersRelations = relations(users, ({ one }) => ({
   }),
 }));
 
+// Dynamic Roles
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(), // Matches users.role
+  description: text("description"),
+  permissions: jsonb("permissions").$type<string[]>().default([]).notNull(),
+  isSystem: boolean("is_system").default(false).notNull(), // Prevent deletion of core roles
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+
 // Insert schemas
 export const insertCitizenSchema = createInsertSchema(citizens).omit({
   id: true,
@@ -257,6 +276,42 @@ export const ESCALATION_HIERARCHY = {
 } as const;
 
 export type UserRole = keyof typeof ROLE_HIERARCHY;
+// Permission definitions
+export const PERMISSIONS = {
+  VIEW_DASHBOARD: "view_dashboard",
+  MANAGE_USERS: "manage_users",
+  MANAGE_STAFF: "manage_staff",
+  MANAGE_CITIZENS: "manage_citizens",
+  VIEW_REPORTS: "view_reports",
+  EDIT_REPORTS: "edit_reports",
+  DELETE_REPORTS: "delete_reports",
+  ESCALATE_ISSUES: "escalate_issues",
+  RESOLVE_ISSUES: "resolve_issues",
+  VIEW_ANALYTICS: "view_analytics",
+  MANAGE_SETTINGS: "manage_settings",
+  SEND_BROADCASTS: "send_broadcasts",
+} as const;
+
+export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  super_admin: Object.values(PERMISSIONS),
+  admin: Object.values(PERMISSIONS).filter(p => !["manage_settings"].includes(p)), // Example restriction
+  manager: [
+    PERMISSIONS.VIEW_DASHBOARD,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.EDIT_REPORTS,
+    PERMISSIONS.ESCALATE_ISSUES,
+    PERMISSIONS.RESOLVE_ISSUES,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.MANAGE_STAFF,
+  ],
+  officer: [
+    PERMISSIONS.VIEW_DASHBOARD,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.EDIT_REPORTS, // restricted mainly to status updates
+    PERMISSIONS.RESOLVE_ISSUES,
+  ],
+};
+
 export type EscalationLevel = keyof typeof ESCALATION_HIERARCHY;
 
 // Select/Infer types

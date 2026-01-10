@@ -28,31 +28,49 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Search, 
-  MoreHorizontal, 
+import {
+  Search,
+  MoreHorizontal,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const INITIAL_CITIZENS = [
-  { id: "C1", name: "Tatenda Phiri", nid: "63-2239121 P 42", ward: "Ward 7", phone: "+263 772 123 456", joined: "2024-11-15", status: "Verified" },
-  { id: "C2", name: "Sarah Mutasa", nid: "08-1123445 F 23", ward: "Ward 12", phone: "+263 773 987 654", joined: "2024-12-01", status: "Verified" },
-  { id: "C3", name: "John Doe", nid: "45-9988776 Q 12", ward: "Ward 3", phone: "+263 712 555 555", joined: "2024-12-10", status: "Pending" },
-  { id: "C4", name: "Grace Kals", nid: "22-3344556 R 66", ward: "Ward 1", phone: "+263 774 111 222", joined: "2024-10-20", status: "Suspended" },
-];
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Citizen } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function AdminCitizens() {
-  const [citizens, setCitizens] = useState(INITIAL_CITIZENS);
   const { toast } = useToast();
 
-  const handleStatusChange = (id: string, newStatus: string) => {
-    setCitizens(citizens.map(c => c.id === id ? { ...c, status: newStatus } : c));
-    toast({
-      title: "Status Updated",
-      description: `User status changed to ${newStatus}.`,
-    });
+  const { data: citizens = [], isLoading } = useQuery<Citizen[]>({
+    queryKey: ["/api/citizens"],
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: number; status: string }) => {
+      const res = await apiRequest("PATCH", `/api/citizens/${id}`, { status });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/citizens"] });
+      toast({
+        title: "Status Updated",
+        description: "Citizen status has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update Failed",
+        description: "Could not update citizen status.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleStatusChange = (id: number, newStatus: string) => {
+    updateStatusMutation.mutate({ id, status: newStatus });
   };
 
   return (
@@ -76,75 +94,83 @@ export default function AdminCitizens() {
               </div>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Citizen</TableHead>
-                  <TableHead>National ID</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Joined Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {citizens.map((citizen) => (
-                  <TableRow key={citizen.id}>
-                    <TableCell className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
-                          {citizen.name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{citizen.name}</span>
-                        <span className="text-xs text-gray-500">{citizen.phone}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{citizen.nid}</TableCell>
-                    <TableCell>{citizen.ward}</TableCell>
-                    <TableCell className="text-sm text-gray-500">{citizen.joined}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        {citizen.status === 'Verified' ? (
-                          <CheckCircle2 size={14} className="text-green-500" />
-                        ) : citizen.status === 'Suspended' ? (
-                          <XCircle size={14} className="text-red-500" />
-                        ) : (
-                          <div className="w-2 h-2 rounded-full bg-orange-400" />
-                        )}
-                        <span className="text-sm">{citizen.status}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <Link href={`/admin/citizen/${citizen.id}`}>
-                            <DropdownMenuItem>View Profile</DropdownMenuItem>
-                          </Link>
-                          <DropdownMenuItem>Verification History</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {citizen.status !== 'Suspended' ? (
-                            <DropdownMenuItem className="text-red-600" onClick={() => handleStatusChange(citizen.id, 'Suspended')}>
-                              Suspend User
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem className="text-green-600" onClick={() => handleStatusChange(citizen.id, 'Verified')}>
-                              Unsuspend User
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Citizen</TableHead>
+                    <TableHead>National ID</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Joined Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {citizens.map((citizen) => (
+                    <TableRow key={citizen.id}>
+                      <TableCell className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
+                            {citizen.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{citizen.name}</span>
+                          <span className="text-xs text-gray-500">{citizen.phone}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{citizen.nid || "N/A"}</TableCell>
+                      <TableCell>{citizen.ward || "Unspecified"}</TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {citizen.createdAt ? format(new Date(citizen.createdAt), 'yyyy-MM-dd') : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {citizen.status === 'verified' ? (
+                            <CheckCircle2 size={14} className="text-green-500" />
+                          ) : citizen.status === 'suspended' ? (
+                            <XCircle size={14} className="text-red-500" />
+                          ) : (
+                            <div className="w-2 h-2 rounded-full bg-orange-400" />
+                          )}
+                          <span className="text-sm capitalize">{citizen.status}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal size={16} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <Link href={`/admin/citizen/${citizen.id}`}>
+                              <DropdownMenuItem>View Profile</DropdownMenuItem>
+                            </Link>
+                            <DropdownMenuItem>Verification History</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {citizen.status !== 'suspended' ? (
+                              <DropdownMenuItem className="text-red-600" onClick={() => handleStatusChange(citizen.id, 'suspended')}>
+                                Suspend User
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem className="text-green-600" onClick={() => handleStatusChange(citizen.id, 'verified')}>
+                                Unsuspend User
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

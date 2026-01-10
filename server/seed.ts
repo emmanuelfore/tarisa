@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { departments, users, citizens, issues, staff } from "@shared/schema";
+import { departments, users, citizens, issues, staff } from "../shared/schema";
 import { sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 

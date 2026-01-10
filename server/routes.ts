@@ -49,6 +49,14 @@ import {
   ESCALATION_HIERARCHY,
   type User,
   type EscalationLevel,
+  type Issue,
+  type Department,
+  type Staff,
+  type Citizen,
+  type Broadcast,
+  type Comment,
+  ROLE_PERMISSIONS,
+  type UserRole,
 } from "@shared/schema";
 
 const SALT_ROUNDS = 10;
@@ -59,6 +67,7 @@ declare module "express-session" {
     userRole?: string;
     escalationLevel?: string;
     departmentId?: number | null;
+    permissions?: string[];
   }
 }
 
@@ -81,6 +90,18 @@ const requireRole = (...allowedRoles: string[]) => {
   };
 };
 
+const requirePermission = (permission: string) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    if (!req.session.permissions?.includes(permission)) {
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+    next();
+  };
+};
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -92,13 +113,103 @@ export async function registerRoutes(
       saveUninitialized: false,
       cookie: {
         secure: process.env.NODE_ENV === "production",
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
       },
     })
   );
 
+
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password required" });
+      }
+
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      if (!user.active) {
+        return res.status(403).json({ error: "Account is disabled" });
+      }
+
+      // Calculate permissions: Role Defaults + Custom User Permissions
+      const roleDefaults = ROLE_PERMISSIONS[user.role as UserRole] || [];
+      const userCustom = (user.permissions as string[]) || [];
+      // Combine unique permissions
+      const allPermissions = Array.from(new Set([...roleDefaults, ...userCustom]));
+
+      req.session.userId = user.id;
+      req.session.userRole = user.role;
+      req.session.escalationLevel = user.escalationLevel;
+      req.session.departmentId = user.departmentId;
+      req.session.permissions = allPermissions;
+
+      const { password: _, ...safeUser } = user;
+      res.json({ user: safeUser, message: "Logged in successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Internal login error" });
+    }
+  });
+
+
   // ============ AUTH ROUTES ============
+
+  /**
+   * @swagger
+   * components:
+   *   schemas:
+   *     User:
+   *       type: object
+   *       properties:
+   *         id:
+   *           type: integer
+   *         username:
+   *           type: string
+   *         role:
+   *           type: string
+   *           enum: [citizen, officer, manager, admin, super_admin]
+   *     LoginCredentials:
+   *       type: object
+   *       required:
+   *         - username
+   *         - password
+   *       properties:
+   *         username:
+   *           type: string
+   *         password:
+   *           type: string
+   * /auth/login:
+   *   post:
+   *     summary: Login user
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/LoginCredentials'
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 user:
+   *                   $ref: '#/components/schemas/User'
+   *       401:
+   *         description: Invalid credentials
+   */
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { username, password } = req.body;
@@ -126,12 +237,21 @@ export async function registerRoutes(
       req.session.departmentId = user.departmentId;
 
       const { password: _, ...safeUser } = user;
-      res.json({ user: safeUser });
+      res.json({ user: safeUser, message: "Logged in successfully" });
     } catch (error) {
-      res.status(500).json({ error: "Login failed" });
+      res.status(500).json({ error: "Internal login error" });
     }
   });
-
+  /**
+   * @swagger
+   * /auth/logout:
+   *   post:
+   *     summary: Logout user
+   *     tags: [Auth]
+   *     responses:
+   *       200:
+   *         description: Logout successful
+   */
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) return res.status(500).json({ error: "Logout failed" });
@@ -139,6 +259,25 @@ export async function registerRoutes(
     });
   });
 
+  /**
+   * @swagger
+   * /auth/me:
+   *   get:
+   *     summary: Get current authenticated user
+   *     tags: [Auth]
+   *     responses:
+   *       200:
+   *         description: Current user authenticated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 user:
+   *                   $ref: '#/components/schemas/User'
+   *       401:
+   *         description: Not authenticated
+   */
   app.get("/api/auth/me", async (req, res) => {
     if (!req.session.userId) {
       return res.status(401).json({ error: "Not authenticated" });
@@ -151,7 +290,24 @@ export async function registerRoutes(
     res.json({ user: safeUser });
   });
 
+
   // ============ USERS/ADMIN ROUTES ============
+  /**
+   * @swagger
+   * /users:
+   *   get:
+   *     summary: List all users (Admin only)
+   *     tags: [Users]
+   *     responses:
+   *       200:
+   *         description: List of users
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/User'
+   */
   app.get("/api/users", requireRole("super_admin", "admin"), async (req, res) => {
     try {
       const users = await storage.listUsers();
@@ -162,6 +318,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /users:
+   *   post:
+   *     summary: Create a new user (Admin only)
+   *     tags: [Users]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [username, password, role]
+   *             properties:
+   *               username: { type: string }
+   *               password: { type: string }
+   *               role: { type: string }
+   *               departmentId: { type: integer }
+   *     responses:
+   *       201:
+   *         description: User created
+   */
   app.post("/api/users", requireRole("super_admin", "admin"), async (req, res) => {
     try {
       const parsed = insertUserSchema.safeParse(req.body);
@@ -183,6 +361,27 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /users/{id}:
+   *   patch:
+   *     summary: Update a user (Admin only)
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/User'
+   *     responses:
+   *       200:
+   *         description: User updated
+   */
   app.patch("/api/users/:id", requireRole("super_admin", "admin"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -198,6 +397,29 @@ export async function registerRoutes(
   });
 
   // ============ DEPARTMENTS ROUTES ============
+  /**
+   * @swagger
+   * /departments:
+   *   get:
+   *     summary: Get all departments
+   *     tags: [Departments]
+   *     responses:
+   *       200:
+   *         description: List of departments
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 type: object
+   *                 properties:
+   *                   id:
+   *                     type: integer
+   *                   name:
+   *                     type: string
+   *                   type:
+   *                     type: string
+   */
   app.get("/api/departments", async (req, res) => {
     try {
       const departments = await storage.listDepartments();
@@ -207,6 +429,26 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /departments:
+   *   post:
+   *     summary: Create a new department
+   *     tags: [Departments]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name, type]
+   *             properties:
+   *               name: { type: string }
+   *               type: { type: string, enum: [ward, district, hq, ministry] }
+   *     responses:
+   *       201:
+   *         description: Department created
+   */
   app.post("/api/departments", requireRole("super_admin", "admin"), async (req, res) => {
     try {
       const parsed = insertDepartmentSchema.safeParse(req.body);
@@ -220,6 +462,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /departments/{id}:
+   *   get:
+   *     summary: Get department by ID
+   *     tags: [Departments]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Department details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Department'
+   *       404:
+   *         description: Department not found
+   */
   app.get("/api/departments/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -233,6 +497,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /departments/{id}/staff:
+   *   get:
+   *     summary: Get staff in a department
+   *     tags: [Departments]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of staff in department
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Staff'
+   */
   app.get("/api/departments/:id/staff", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -253,6 +539,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /staff:
+   *   post:
+   *     summary: Create a new staff member
+   *     tags: [Staff]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name, role, departmentId]
+   *             properties:
+   *               name: { type: string }
+   *               role: { type: string }
+   *               departmentId: { type: integer }
+   *               email: { type: string }
+   *     responses:
+   *       201:
+   *         description: Staff member created
+   */
   app.post("/api/staff", requireRole("super_admin", "admin", "manager"), async (req, res) => {
     try {
       const parsed = insertStaffSchema.safeParse(req.body);
@@ -266,6 +574,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /staff/{id}:
+   *   get:
+   *     summary: Get staff member by ID
+   *     tags: [Staff]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Staff member details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Staff'
+   *       404:
+   *         description: Staff member not found
+   */
   app.get("/api/staff/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -279,7 +609,57 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /staff/{id}:
+   *   patch:
+   *     summary: Update a staff member
+   *     tags: [Staff]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/Staff'
+   *     responses:
+   *       200:
+   *         description: Staff member updated
+   */
+  app.patch("/api/staff/:id", requireRole("super_admin", "admin", "manager"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const staffMember = await storage.updateStaff(id, req.body);
+      if (!staffMember) {
+        return res.status(404).json({ error: "Staff member not found" });
+      }
+      res.json(staffMember);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update staff member" });
+    }
+  });
+
   // ============ CITIZENS ROUTES ============
+  /**
+   * @swagger
+   * /citizens:
+   *   get:
+   *     summary: List all citizens
+   *     tags: [Citizens]
+   *     responses:
+   *       200:
+   *         description: List of citizens
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Citizen'
+   */
   app.get("/api/citizens", requireAuth, async (req, res) => {
     try {
       const citizens = await storage.listCitizens();
@@ -289,6 +669,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /citizens:
+   *   post:
+   *     summary: Register a new citizen
+   *     tags: [Citizens]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [userId, name, nationalId]
+   *             properties:
+   *               userId: { type: integer }
+   *               name: { type: string }
+   *               nationalId: { type: string }
+   *               email: { type: string }
+   *     responses:
+   *       201:
+   *         description: Citizen registered
+   */
   app.post("/api/citizens", async (req, res) => {
     try {
       const parsed = insertCitizenSchema.safeParse(req.body);
@@ -308,6 +710,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /citizens/{id}:
+   *   get:
+   *     summary: Get citizen by ID
+   *     tags: [Citizens]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Citizen details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Citizen'
+   *       404:
+   *         description: Citizen not found
+   */
   app.get("/api/citizens/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -321,6 +745,22 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /citizens/{id}/verify:
+   *   post:
+   *     summary: Verify a citizen's email
+   *     tags: [Citizens]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Citizen verified
+   */
   app.post("/api/citizens/:id/verify", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -335,9 +775,36 @@ export async function registerRoutes(
   });
 
   // ============ ISSUES ROUTES ============
+  /**
+   * @swagger
+   * /issues:
+   *   get:
+   *     summary: List issues
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [submitted, in_progress, resolved, closed]
+   *         description: Filter by status
+   *       - in: query
+   *         name: category
+   *         schema:
+   *           type: string
+   *         description: Filter by category
+   *     responses:
+   *       200:
+   *         description: List of filtered issues
+   */
   app.get("/api/issues", requireAuth, async (req, res) => {
     try {
       const { status, category, citizenId, departmentId, startDate, endDate } = req.query;
+
+      console.log("GET /api/issues request:", {
+        session: req.session,
+        query: req.query
+      });
 
       if (req.session.escalationLevel) {
         const issues = await storage.listIssuesByEscalationLevel(
@@ -362,6 +829,30 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues:
+   *   post:
+   *     summary: Create a new issue report
+   *     tags: [Issues]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [title, category, location, priority]
+   *             properties:
+   *               title: { type: string }
+   *               description: { type: string }
+   *               category: { type: string }
+   *               location: { type: string }
+   *               priority: { type: string }
+   *               coordinates: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
+   *     responses:
+   *       201:
+   *         description: Issue created
+   */
   app.post("/api/issues", async (req, res) => {
     try {
       const parsed = insertIssueSchema.safeParse(req.body);
@@ -375,18 +866,40 @@ export async function registerRoutes(
     }
   });
 
-  // Anonymous issue submission (for elderly/ICT-challenged users)
+  /**
+   * @swagger
+   * /issues/anonymous:
+   *   post:
+   *     summary: Submit an anonymous issue
+   *     tags: [Issues]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [title, description, category, location]
+   *             properties:
+   *               title: { type: string }
+   *               description: { type: string }
+   *               category: { type: string }
+   *               location: { type: string }
+   *               priority: { type: string }
+   *     responses:
+   *       201:
+   *         description: Anonymous issue submitted
+   */
   app.post("/api/issues/anonymous", async (req, res) => {
     try {
       const { title, description, category, location, coordinates, priority, severity, photos } = req.body;
-      
+
       if (!title || !description || !category || !location) {
         return res.status(400).json({ error: "Title, description, category, and location are required" });
       }
 
       // Get or create the anonymous citizen
       const anonymousCitizen = await storage.getOrCreateAnonymousCitizen();
-      
+
       const issue = await storage.createIssue({
         title,
         description,
@@ -398,8 +911,8 @@ export async function registerRoutes(
         citizenId: anonymousCitizen.id,
         photos: photos || [],
       });
-      
-      res.status(201).json({ 
+
+      res.status(201).json({
         trackingId: issue.trackingId,
         message: "Anonymous report submitted successfully. Save your tracking ID to check status."
       });
@@ -409,14 +922,34 @@ export async function registerRoutes(
     }
   });
 
-  // Photo upload endpoint
+  /**
+   * @swagger
+   * /upload/photo:
+   *   post:
+   *     summary: Upload photos for an issue
+   *     tags: [Uploads]
+   *     requestBody:
+   *       content:
+   *         multipart/form-data:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               photos:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                   format: binary
+   *     responses:
+   *       200:
+   *         description: Photos uploaded successfully
+   */
   app.post("/api/upload/photo", upload.array('photos', 5), async (req, res) => {
     try {
       const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
         return res.status(400).json({ error: "No files uploaded" });
       }
-      
+
       const urls = files.map(file => `/uploads/${file.filename}`);
       res.json({ urls, message: `Successfully uploaded ${files.length} photo(s)` });
     } catch (error) {
@@ -435,6 +968,28 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/{id}:
+   *   get:
+   *     summary: Get issue details by ID
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Issue details
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Issue'
+   *       404:
+   *         description: Issue not found
+   */
   app.get("/api/issues/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -457,6 +1012,24 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/tracking/{trackingId}:
+   *   get:
+   *     summary: Get issue by Tracking ID
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: trackingId
+   *         required: true
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Issue details
+   *       404:
+   *         description: Issue not found
+   */
   app.get("/api/issues/tracking/:trackingId", async (req, res) => {
     try {
       const issue = await storage.getIssueByTrackingId(req.params.trackingId);
@@ -469,6 +1042,27 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/{id}:
+   *   patch:
+   *     summary: Update an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/Issue'
+   *     responses:
+   *       200:
+   *         description: Issue updated
+   */
   app.patch("/api/issues/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -492,6 +1086,31 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/{id}/assign:
+   *   post:
+   *     summary: Assign an issue to department/staff
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               departmentId: { type: integer }
+   *               staffId: { type: integer }
+   *               escalationLevel: { type: string }
+   *     responses:
+   *       200:
+   *         description: Issue assigned
+   */
   app.post("/api/issues/:id/assign", requireRole("super_admin", "admin", "manager"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -519,6 +1138,22 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/{id}/escalate:
+   *   post:
+   *     summary: Escalate an issue to the next level
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Issue escalated
+   */
   app.post("/api/issues/:id/escalate", requireRole("super_admin", "admin", "manager"), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -556,6 +1191,22 @@ export async function registerRoutes(
   });
 
   // ============ COMMENTS ROUTES ============
+  /**
+   * @swagger
+   * /issues/{id}/comments:
+   *   get:
+   *     summary: Get comments for an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of comments
+   */
   app.get("/api/issues/:id/comments", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -566,6 +1217,32 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /issues/{id}/comments:
+   *   post:
+   *     summary: Add a comment to an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [content, authorName]
+   *             properties:
+   *               content: { type: string }
+   *               authorName: { type: string }
+   *     responses:
+   *       201:
+   *         description: Comment created
+   */
   app.post("/api/issues/:id/comments", async (req, res) => {
     try {
       const issueId = parseInt(req.params.id);
@@ -587,6 +1264,22 @@ export async function registerRoutes(
   });
 
   // ============ TIMELINE ROUTES ============
+  /**
+   * @swagger
+   * /issues/{id}/timeline:
+   *   get:
+   *     summary: Get timeline for an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Timeline events
+   */
   app.get("/api/issues/:id/timeline", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -598,6 +1291,27 @@ export async function registerRoutes(
   });
 
   // ============ BROADCASTS ROUTES ============
+  /**
+   * @swagger
+   * /broadcasts:
+   *   get:
+   *     summary: List broadcasts
+   *     tags: [Broadcasts]
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of broadcasts
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Broadcast'
+   */
   app.get("/api/broadcasts", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -608,6 +1322,27 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /broadcasts:
+   *   post:
+   *     summary: Create a broadcast
+   *     tags: [Broadcasts]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [title, message]
+   *             properties:
+   *               title: { type: string }
+   *               message: { type: string }
+   *               type: { type: string }
+   *     responses:
+   *       201:
+   *         description: Broadcast created
+   */
   app.post("/api/broadcasts", requireRole("super_admin", "admin", "manager"), async (req, res) => {
     try {
       const parsed = insertBroadcastSchema.safeParse(req.body);
@@ -622,6 +1357,22 @@ export async function registerRoutes(
   });
 
   // ============ CREDITS ROUTES ============
+  /**
+   * @swagger
+   * /citizens/{id}/credits:
+   *   get:
+   *     summary: Get citizen credits
+   *     tags: [Citizens]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Citizen credit balance
+   */
   app.get("/api/citizens/:id/credits", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -632,6 +1383,22 @@ export async function registerRoutes(
     }
   });
 
+  /**
+   * @swagger
+   * /citizens/{id}/credits/history:
+   *   get:
+   *     summary: Get citizen credit history
+   *     tags: [Citizens]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Citizen credit history
+   */
   app.get("/api/citizens/:id/credits/history", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -643,6 +1410,16 @@ export async function registerRoutes(
   });
 
   // ============ ANALYTICS ROUTES ============
+  /**
+   * @swagger
+   * /analytics:
+   *   get:
+   *     summary: Get analytics data
+   *     tags: [Analytics]
+   *     responses:
+   *       200:
+   *         description: Analytics summaries
+   */
   app.get("/api/analytics", requireAuth, async (req, res) => {
     try {
       const analytics = await storage.getAnalytics();
@@ -653,6 +1430,22 @@ export async function registerRoutes(
   });
 
   // ============ EXPORT ROUTES ============
+  /**
+   * @swagger
+   * /export/issues:
+   *   get:
+   *     summary: Export issues to CSV/JSON
+   *     tags: [Export]
+   *     parameters:
+   *       - in: query
+   *         name: format
+   *         schema:
+   *           type: string
+   *           enum: [csv, json]
+   *     responses:
+   *       200:
+   *         description: Exported data
+   */
   app.get("/api/export/issues", requireRole("super_admin", "admin", "manager"), async (req, res) => {
     try {
       const { format } = req.query;
@@ -661,9 +1454,9 @@ export async function registerRoutes(
       const staff = await storage.listStaff();
 
       // Enrich issues with department and staff names
-      const enrichedIssues = issues.map(issue => {
-        const dept = departments.find(d => d.id === issue.assignedDepartmentId);
-        const staffMember = staff.find(s => s.id === issue.assignedStaffId);
+      const enrichedIssues = issues.map((issue: Issue) => {
+        const dept = departments.find((d: Department) => d.id === issue.assignedDepartmentId);
+        const staffMember = staff.find((s: Staff) => s.id === issue.assignedStaffId);
         return {
           ...issue,
           departmentName: dept?.name || "Unassigned",
@@ -673,7 +1466,7 @@ export async function registerRoutes(
 
       if (format === "csv") {
         const headers = ["Tracking ID", "Title", "Category", "Location", "Status", "Priority", "Escalation", "Department", "Staff", "Created"];
-        const rows = enrichedIssues.map(issue => [
+        const rows = enrichedIssues.map((issue: any) => [
           issue.trackingId,
           `"${issue.title.replace(/"/g, '""')}"`,
           issue.category,
@@ -685,7 +1478,7 @@ export async function registerRoutes(
           `"${issue.staffName}"`,
           issue.createdAt ? new Date(issue.createdAt).toISOString().split("T")[0] : "",
         ]);
-        
+
         const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", `attachment; filename=tarisa-issues-${new Date().toISOString().split("T")[0]}.csv`);
@@ -781,7 +1574,7 @@ export async function registerRoutes(
   </script>
 </body>
 </html>`;
-      
+
       res.setHeader("Content-Type", "text/html");
       res.send(html);
     } catch (error) {

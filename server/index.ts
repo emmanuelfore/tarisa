@@ -1,7 +1,9 @@
+import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import path from "path";
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,7 +37,7 @@ export function log(message: string, source = "express") {
 
 app.use((req, res, next) => {
   const start = Date.now();
-  const path = req.path;
+  const requestPath = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
@@ -46,8 +48,8 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+    if (requestPath.startsWith("/api")) {
+      let logLine = `${req.method} ${requestPath} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -60,6 +62,64 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+
+  // Swagger Setup
+  const swaggerOptions = {
+    definition: {
+      openapi: '3.0.0',
+      info: {
+        title: 'Civic App API',
+        version: '1.0.0',
+        description: 'API documentation for the Civic Application',
+      },
+      servers: [
+        {
+          url: '/api',
+          description: 'API Server'
+        },
+      ],
+    },
+    apis: [path.resolve(process.cwd(), "server", "routes.ts")], // Absolute path to the API docs
+  };
+
+
+  const swaggerSpec = await import('swagger-jsdoc').then(m => m.default(swaggerOptions));
+  const swaggerUi = await import('swagger-ui-express');
+
+  // Ensure we get the correct middleware functions
+  // In some environments 'serve' is a named export, in others it's on 'default'
+  // We prioritize the named export if available as seen in debug output
+  const serve = swaggerUi.serve || swaggerUi.default?.serve;
+  const setup = swaggerUi.setup || swaggerUi.default?.setup;
+
+  // Debug to file
+  // Debug to file
+  const fs = await import('fs');
+  // path is already imported at top level
+  const debugLogPath = path.resolve(process.cwd(), 'debug-serve.log');
+
+  fs.writeFileSync(debugLogPath, JSON.stringify({
+    timestamp: new Date().toISOString(),
+    hasServe: !!serve,
+    serveType: Array.isArray(serve) ? 'array' : typeof serve,
+    serveLength: Array.isArray(serve) ? serve.length : 'N/A',
+    hasSetup: !!setup,
+    specInfo: swaggerSpec?.info?.title,
+    specPaths: Object.keys(swaggerSpec?.paths || {}).length
+  }, null, 2));
+
+  // Simple verify route to check express routing
+  app.get('/verify-docs', (req, res) => {
+    res.json({ message: "Routing is working", swaggerPaths: Object.keys(swaggerSpec?.paths || {}).length });
+  });
+
+  if (serve && setup) {
+    app.use('/api-docs', serve, setup(swaggerSpec));
+    console.log("Swagger UI successfully registered at /api-docs");
+  } else {
+    console.error("CRITICAL: Failed to initialize Swagger UI. 'serve' or 'setup' missing in import.");
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -89,7 +149,6 @@ app.use((req, res, next) => {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

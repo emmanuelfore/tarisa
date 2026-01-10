@@ -27,60 +27,60 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { 
-  RadioGroup, 
-  RadioGroupItem 
+import {
+  RadioGroup,
+  RadioGroupItem
 } from "@/components/ui/radio-group";
-import { 
-  Megaphone, 
-  Send, 
-  Users, 
-  MapPin, 
-  AlertTriangle, 
-  Info, 
+import {
+  Megaphone,
+  Send,
+  Users,
+  MapPin,
+  AlertTriangle,
+  Info,
   CheckCircle2,
-  Clock
+  Clock,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-// Mock Data
-const PREVIOUS_BROADCASTS = [
-  { 
-    id: "B-001", 
-    title: "Water Shutdown Notice", 
-    target: "Ward 7, Ward 8", 
-    severity: "High", 
-    date: "2025-12-12 14:30", 
-    status: "Sent",
-    recipients: 1250
-  },
-  { 
-    id: "B-002", 
-    title: "Cholera Awareness Campaign", 
-    target: "All Wards", 
-    severity: "Medium", 
-    date: "2025-12-10 09:00", 
-    status: "Sent",
-    recipients: 45000
-  },
-  { 
-    id: "B-003", 
-    title: "Road Maintenance Schedule", 
-    target: "District A", 
-    severity: "Low", 
-    date: "2025-12-08 11:15", 
-    status: "Sent",
-    recipients: 3400
-  },
-];
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Broadcast } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function AdminBroadcast() {
-  const [broadcasts, setBroadcasts] = useState(PREVIOUS_BROADCASTS);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [targetType, setTargetType] = useState("all");
   const [severity, setSeverity] = useState("info");
   const { toast } = useToast();
+
+  const { data: broadcasts = [], isLoading } = useQuery<Broadcast[]>({
+    queryKey: ["/api/broadcasts"],
+  });
+
+  const sendBroadcastMutation = useMutation({
+    mutationFn: async (data: Partial<Broadcast>) => {
+      const res = await apiRequest("POST", "/api/broadcasts", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/broadcasts"] });
+      setTitle("");
+      setMessage("");
+      toast({
+        title: "Broadcast Sent",
+        description: "Message has been sent to residents successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Broadcast Failed",
+        description: "Could not send broadcast message.",
+        variant: "destructive",
+      });
+    }
+  });
 
   const handleSendBroadcast = () => {
     if (!title || !message) {
@@ -92,24 +92,15 @@ export default function AdminBroadcast() {
       return;
     }
 
-    const newBroadcast = {
-      id: `B-00${broadcasts.length + 1}`,
+    const payload = {
       title,
-      target: targetType === 'all' ? "All Wards" : targetType === 'district' ? "Selected District" : "Selected Wards",
-      severity: severity === 'high' ? "High" : severity === 'medium' ? "Medium" : "Low",
-      date: new Date().toLocaleString(),
-      status: "Sent",
-      recipients: Math.floor(Math.random() * 5000) + 500
+      message,
+      severity,
+      targetWards: targetType === 'all' ? ["All Wards"] : targetType === 'district' ? ["Selected District"] : ["Selected Wards"],
+      createdBy: "Admin", // Should come from session in a real app
     };
 
-    setBroadcasts([newBroadcast, ...broadcasts]);
-    setTitle("");
-    setMessage("");
-    
-    toast({
-      title: "Broadcast Sent",
-      description: `Message sent to ${newBroadcast.recipients} residents successfully.`,
-    });
+    sendBroadcastMutation.mutate(payload);
   };
 
   return (
@@ -135,9 +126,9 @@ export default function AdminBroadcast() {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="title">Broadcast Title</Label>
-                <Input 
-                  id="title" 
-                  placeholder="e.g. Urgent Water Supply Interruption" 
+                <Input
+                  id="title"
+                  placeholder="e.g. Urgent Water Supply Interruption"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
@@ -145,8 +136,8 @@ export default function AdminBroadcast() {
 
               <div className="space-y-2">
                 <Label>Target Audience</Label>
-                <RadioGroup 
-                  defaultValue="all" 
+                <RadioGroup
+                  defaultValue="all"
                   value={targetType}
                   onValueChange={setTargetType}
                   className="grid grid-cols-1 md:grid-cols-3 gap-4"
@@ -191,24 +182,24 @@ export default function AdminBroadcast() {
               <div className="space-y-2">
                 <Label>Severity Level</Label>
                 <div className="flex gap-4">
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant={severity === 'info' ? 'default' : 'outline'}
                     className={`flex-1 ${severity === 'info' ? 'bg-blue-600 hover:bg-blue-700' : 'text-blue-600 border-blue-200'}`}
                     onClick={() => setSeverity('info')}
                   >
                     <Info size={16} className="mr-2" /> Info
                   </Button>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant={severity === 'medium' ? 'default' : 'outline'}
                     className={`flex-1 ${severity === 'medium' ? 'bg-orange-500 hover:bg-orange-600' : 'text-orange-500 border-orange-200'}`}
                     onClick={() => setSeverity('medium')}
                   >
                     <AlertTriangle size={16} className="mr-2" /> Warning
                   </Button>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     variant={severity === 'high' ? 'default' : 'outline'}
                     className={`flex-1 ${severity === 'high' ? 'bg-red-600 hover:bg-red-700' : 'text-red-600 border-red-200'}`}
                     onClick={() => setSeverity('high')}
@@ -220,9 +211,9 @@ export default function AdminBroadcast() {
 
               <div className="space-y-2">
                 <Label htmlFor="message">Message Body</Label>
-                <Textarea 
-                  id="message" 
-                  placeholder="Type your message here..." 
+                <Textarea
+                  id="message"
+                  placeholder="Type your message here..."
                   className="min-h-[150px]"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -232,8 +223,13 @@ export default function AdminBroadcast() {
                 </p>
               </div>
 
-              <Button className="w-full h-12 text-lg" onClick={handleSendBroadcast}>
-                <Send className="mr-2" /> Send Broadcast
+              <Button className="w-full h-12 text-lg" onClick={handleSendBroadcast} disabled={sendBroadcastMutation.isPending}>
+                {sendBroadcastMutation.isPending ? (
+                  <Loader2 className="mr-2 animate-spin" />
+                ) : (
+                  <Send className="mr-2" />
+                )}
+                Send Broadcast
               </Button>
             </CardContent>
           </Card>
@@ -284,53 +280,59 @@ export default function AdminBroadcast() {
             <CardDescription>Recent messages sent to the community.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Broadcast ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Sent Date</TableHead>
-                  <TableHead>Recipients</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {broadcasts.map((broadcast) => (
-                  <TableRow key={broadcast.id}>
-                    <TableCell className="font-mono text-xs text-gray-500">
-                      {broadcast.id}
-                    </TableCell>
-                    <TableCell className="font-medium">{broadcast.title}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Users size={14} />
-                        {broadcast.target}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={`
-                        ${broadcast.severity === 'High' ? 'bg-red-50 text-red-700 border-red-200' : 
-                          broadcast.severity === 'Medium' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
-                          'bg-blue-50 text-blue-700 border-blue-200'}
-                      `}>
-                        {broadcast.severity}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {broadcast.date}
-                    </TableCell>
-                    <TableCell>{broadcast.recipients.toLocaleString()}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-green-100 text-green-700">
-                        {broadcast.status}
-                      </Badge>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Broadcast ID</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Target</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Sent Date</TableHead>
+                    <TableHead>Recipients</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {broadcasts.map((broadcast) => (
+                    <TableRow key={broadcast.id}>
+                      <TableCell className="font-mono text-xs text-gray-500">
+                        {broadcast.id}
+                      </TableCell>
+                      <TableCell className="font-medium">{broadcast.title}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                          <Users size={14} />
+                          {Array.isArray(broadcast.targetWards) ? broadcast.targetWards.join(', ') : 'All'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`
+                          ${broadcast.severity === 'high' ? 'bg-red-50 text-red-700 border-red-200' :
+                            broadcast.severity === 'medium' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                              'bg-blue-50 text-blue-700 border-blue-200'}
+                        `}>
+                          {broadcast.severity}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {broadcast.createdAt ? format(new Date(broadcast.createdAt), 'MMM d, yyyy HH:mm') : 'N/A'}
+                      </TableCell>
+                      <TableCell>~</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700">
+                          Sent
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

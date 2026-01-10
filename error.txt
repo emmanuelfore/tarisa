@@ -1,0 +1,40 @@
+﻿node.exe : C:\Users\Emmanuel\Des
+ktop\Civic\server\db.ts:8
+At C:\Users\Emmanuel\AppData\Roa
+ming\npm\npx.ps1:24 char:5
++     & "node$exe"  "$basedir/no
+de_modules/npm/bin/npx-cli.js" 
+$args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : N 
+   otSpecified: (C:\Users\Emma  
+  nu...\server\db.ts:8:String   
+ ) [], RemoteException
+    + FullyQualifiedErrorId : N 
+   ativeCommandError
+ 
+  throw new Error(
+        ^
+
+
+Error: DATABASE_URL must be 
+set. Did you forget to 
+provision a database?
+    at <anonymous> (C:\Users\Emm
+anuel\Desktop\Civic\server\db.ts
+:8:9)
+    at ModuleJob.run (node:inter
+nal/modules/esm/module_job:370:2
+5)
+    at async 
+onImport.tracePromise.__proto__ 
+(node:internal/modules/esm/loade
+r:665:26)
+    at async 
+asyncRunEntryPointWithESMLoader 
+(node:internal/modules/run_main:
+99:5)
+
+Node.js v24.4.1

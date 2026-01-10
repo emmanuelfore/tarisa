@@ -42,12 +42,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  UserPlus, 
-  AlertCircle, 
+import {
+  Search,
+  Filter,
+  MoreHorizontal,
+  UserPlus,
+  AlertCircle,
   ArrowUpRight,
   Siren,
   User,
@@ -108,25 +108,25 @@ export default function AdminReports() {
   // Filter issues based on search and status
   const filteredIssues = useMemo(() => {
     return issues.filter(issue => {
-      const matchesSearch = searchQuery === "" || 
+      const matchesSearch = searchQuery === "" ||
         issue.trackingId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         issue.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
         issue.category.toLowerCase().includes(searchQuery.toLowerCase());
-      
+
       const matchesStatus = statusFilter === "all" || issue.status === statusFilter;
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [issues, searchQuery, statusFilter]);
 
   // Assign mutation
   const assignMutation = useMutation({
-    mutationFn: async ({ issueId, departmentId, staffId, escalationLevel }: { 
-      issueId: number; 
-      departmentId: number | null; 
+    mutationFn: async ({ issueId, departmentId, staffId, escalationLevel }: {
+      issueId: number;
+      departmentId: number | null;
       staffId: number | null;
-      escalationLevel: string 
+      escalationLevel: string
     }) => {
       const res = await fetch(`/api/issues/${issueId}/assign`, {
         method: "POST",
@@ -212,7 +212,7 @@ export default function AdminReports() {
       issue.escalationLevel,
       issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "",
     ]);
-    
+
     const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -221,7 +221,7 @@ export default function AdminReports() {
     a.download = `tarisa-reports-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "Export Complete",
       description: `Exported ${filteredIssues.length} reports to CSV.`,
@@ -264,8 +264,8 @@ export default function AdminReports() {
             <div className="flex items-center gap-4 flex-1">
               <div className="relative w-full max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <Input 
-                  placeholder="Search ID, location, or category..." 
+                <Input
+                  placeholder="Search ID, location, or category..."
                   className="pl-10"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -319,7 +319,7 @@ export default function AdminReports() {
                 filteredIssues.map((report) => {
                   const dept = departments.find(d => d.id === report.assignedDepartmentId);
                   const staff = allStaff.find(s => s.id === report.assignedStaffId);
-                  
+
                   return (
                     <TableRow key={report.id} className="hover:bg-gray-50/50" data-testid={`row-report-${report.id}`}>
                       <TableCell className="font-mono text-xs font-medium text-gray-500">
@@ -337,12 +337,11 @@ export default function AdminReports() {
                       <TableCell>
                         <div className="flex flex-col gap-1.5">
                           <StatusBadge status={report.status as any} />
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${
-                            report.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                            report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                            report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${report.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                              report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-blue-100 text-blue-700'
+                            }`}>
                             {report.priority.charAt(0).toUpperCase() + report.priority.slice(1)} Priority
                           </span>
                         </div>
@@ -353,15 +352,15 @@ export default function AdminReports() {
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
                                 <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                  {dept.name.substring(0,2).toUpperCase()}
+                                  {dept.name.substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <span className="text-sm font-medium text-gray-700">{dept.name}</span>
                             </div>
                             {staff && (
                               <div className="flex items-center gap-1.5 ml-8">
-                                 <User size={12} className="text-gray-400" />
-                                 <span className="text-xs text-gray-500">{staff.name}</span>
+                                <User size={12} className="text-gray-400" />
+                                <span className="text-xs text-gray-500">{staff.name}</span>
                               </div>
                             )}
                           </div>
@@ -370,11 +369,10 @@ export default function AdminReports() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className={`text-xs font-medium px-2 py-1 rounded inline-flex items-center gap-1.5 ${
-                           ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.color || "bg-gray-100 text-gray-600"
-                        }`}>
-                           {report.escalationLevel === 'L4' && <Siren size={12} />}
-                           {ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.name || "Level 1"}
+                        <div className={`text-xs font-medium px-2 py-1 rounded inline-flex items-center gap-1.5 ${ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.color || "bg-gray-100 text-gray-600"
+                          }`}>
+                          {report.escalationLevel === 'L4' && <Siren size={12} />}
+                          {ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.name || "Level 1"}
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
@@ -390,11 +388,11 @@ export default function AdminReports() {
                             <DropdownMenuItem onClick={() => handleAssignClick(report)}>
                               <UserPlus size={14} className="mr-2" /> Assign Team
                             </DropdownMenuItem>
-                             <DropdownMenuItem onClick={() => handleEscalate(report)}>
+                            <DropdownMenuItem onClick={() => handleEscalate(report)}>
                               <AlertCircle size={14} className="mr-2" /> Escalate Issue
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <Link href={`/admin/issue/${report.id}`}>
+                            <Link href={`/admin/reports/${report.id}`}>
                               <DropdownMenuItem>
                                 View Full Details
                               </DropdownMenuItem>
@@ -420,7 +418,7 @@ export default function AdminReports() {
               Select the responsible department and escalation level for this issue.
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedReport && (
             <div className="grid gap-4 py-4">
               <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 mb-2">
@@ -438,49 +436,49 @@ export default function AdminReports() {
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent>
-                     {departments.map(dept => (
-                       <SelectItem key={dept.id} value={dept.id.toString()}>
-                         <div className="flex items-center justify-between w-full">
-                           <span>{dept.name}</span>
-                           <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
-                         </div>
-                       </SelectItem>
-                     ))}
+                    {departments.map(dept => (
+                      <SelectItem key={dept.id} value={dept.id.toString()}>
+                        <div className="flex items-center justify-between w-full">
+                          <span>{dept.name}</span>
+                          <Badge variant="outline" className="ml-2 text-[10px]">{dept.type}</Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
                 <label className="text-sm font-medium flex items-center justify-between">
-                   <span>Assign Staff Member</span>
-                   <span className="text-xs text-gray-500 font-normal">(Optional)</span>
+                  <span>Assign Staff Member</span>
+                  <span className="text-xs text-gray-500 font-normal">(Optional)</span>
                 </label>
-                <Select 
-                  value={selectedStaff} 
+                <Select
+                  value={selectedStaff}
                   onValueChange={setSelectedStaff}
                   disabled={!selectedDept || availableStaff.length === 0}
                 >
                   <SelectTrigger data-testid="dialog-select-staff">
                     <SelectValue placeholder={
                       !selectedDept ? "Select a department first" :
-                      availableStaff.length === 0 ? "No staff found for this department" :
-                      "Select Staff Member"
+                        availableStaff.length === 0 ? "No staff found for this department" :
+                          "Select Staff Member"
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                     {availableStaff.map(staff => (
-                       <SelectItem key={staff.id} value={staff.id.toString()}>
-                         <div className="flex items-center gap-2">
-                           <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                                {staff.name.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                           </Avatar>
-                           <span>{staff.name}</span>
-                           <span className="text-xs text-gray-400">({staff.role})</span>
-                         </div>
-                       </SelectItem>
-                     ))}
+                    {availableStaff.map(staff => (
+                      <SelectItem key={staff.id} value={staff.id.toString()}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                              {staff.name.split(' ').map(n => n[0]).join('')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{staff.name}</span>
+                          <span className="text-xs text-gray-400">({staff.role})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -492,14 +490,14 @@ export default function AdminReports() {
                     <SelectValue placeholder="Select Level" />
                   </SelectTrigger>
                   <SelectContent>
-                     {ESCALATION_LEVELS.map(level => (
-                       <SelectItem key={level.id} value={level.id}>
-                         <div className="flex items-center gap-2">
-                           <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
-                           <span>{level.name}</span>
-                         </div>
-                       </SelectItem>
-                     ))}
+                    {ESCALATION_LEVELS.map(level => (
+                      <SelectItem key={level.id} value={level.id}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
+                          <span>{level.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-[10px] text-gray-500">
