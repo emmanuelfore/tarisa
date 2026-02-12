@@ -14,7 +14,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
 } from 'recharts';
 import {
   ArrowUpRight,
@@ -294,27 +298,39 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Heat Map Mini */}
-        <Card className="overflow-hidden cursor-pointer group" onClick={() => toast({ title: "Live Map", description: "Opening fullscreen map..." })}>
+        {/* Status Distribution Pie Chart */}
+        <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-lg font-heading group-hover:text-primary transition-colors">Hotspots</CardTitle>
+            <CardTitle className="text-lg font-heading">By Status</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 relative h-[300px]">
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url(${mapBg})` }}
-            />
-            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors" />
-
-            {/* Heat Points */}
-            <div className="absolute top-1/2 left-1/2 w-32 h-32 bg-red-500/30 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-            <div className="absolute top-1/3 left-1/3 w-24 h-24 bg-orange-500/30 rounded-full blur-xl" />
-
-            <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur rounded-lg p-3 shadow-lg">
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-medium">City of Harare</span>
-                <span className="text-primary font-bold">{analytics?.totalIssues || 0} reports</span>
-              </div>
+          <CardContent>
+            <div className="h-[300px] w-full relative">
+              {analytics?.statusCounts && Object.keys(analytics.statusCounts).length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={Object.entries(analytics.statusCounts).map(([name, value]) => ({ name: name.replace('_', ' ').toUpperCase(), value }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {Object.entries(analytics.statusCounts).map((entry, index) => {
+                        const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                      })}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  No data available
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

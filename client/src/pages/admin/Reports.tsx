@@ -74,12 +74,19 @@ export default function AdminReports() {
   const [selectedStaff, setSelectedStaff] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   // Fetch issues
   const { data: issues = [], isLoading: issuesLoading } = useQuery<Issue[]>({
-    queryKey: ["/api/issues"],
+    queryKey: ["/api/issues", { status: statusFilter, startDate, endDate }],
     queryFn: async () => {
-      const res = await fetch("/api/issues", { credentials: "include" });
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+
+      const res = await fetch(`/api/issues?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch issues");
       return res.json();
     },
@@ -201,30 +208,19 @@ export default function AdminReports() {
 
   // Export to CSV
   const handleExportCSV = () => {
-    const headers = ["Tracking ID", "Title", "Category", "Location", "Status", "Priority", "Escalation", "Created"];
-    const rows = filteredIssues.map(issue => [
-      issue.trackingId,
-      issue.title,
-      issue.category,
-      issue.location,
-      issue.status,
-      issue.priority,
-      issue.escalationLevel,
-      issue.createdAt ? new Date(issue.createdAt).toLocaleDateString() : "",
-    ]);
+    const params = new URLSearchParams();
+    if (statusFilter && statusFilter !== "all") {
+      params.append("status", statusFilter);
+    }
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `tarisa-reports-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    // Trigger download
+    window.location.href = `/api/reports/export?${params.toString()}`;
 
     toast({
-      title: "Export Complete",
-      description: `Exported ${filteredIssues.length} reports to CSV.`,
+      title: "Export Started",
+      description: "Your report is downloading...",
     });
   };
 
@@ -286,6 +282,37 @@ export default function AdminReports() {
                   <SelectItem value="closed">Closed</SelectItem>
                 </SelectContent>
               </Select>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium">From:</span>
+                <Input
+                  type="date"
+                  className="w-[140px] h-9 text-xs"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  data-testid="input-start-date"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 font-medium">To:</span>
+                <Input
+                  type="date"
+                  className="w-[140px] h-9 text-xs"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  data-testid="input-end-date"
+                />
+              </div>
+              {(startDate || endDate) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-[10px]"
+                  onClick={() => { setStartDate(""); setEndDate(""); }}
+                >
+                  Clear Dates
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">
@@ -303,6 +330,7 @@ export default function AdminReports() {
                 <TableHead className="w-[120px]">Tracking ID</TableHead>
                 <TableHead>Issue Details</TableHead>
                 <TableHead>Status & Priority</TableHead>
+                <TableHead>Date Reported</TableHead>
                 <TableHead>Assigned Authority</TableHead>
                 <TableHead>Escalation</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -338,11 +366,21 @@ export default function AdminReports() {
                         <div className="flex flex-col gap-1.5">
                           <StatusBadge status={report.status as any} />
                           <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded w-fit ${report.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                              report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                                report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                                  'bg-blue-100 text-blue-700'
+                            report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                              report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-blue-100 text-blue-700'
                             }`}>
                             {report.priority.charAt(0).toUpperCase() + report.priority.slice(1)} Priority
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="text-sm text-gray-900">
+                            {new Date(report.createdAt).toLocaleDateString()}
+                          </span>
+                          <span className="text-[10px] text-gray-500">
+                            {new Date(report.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       </TableCell>

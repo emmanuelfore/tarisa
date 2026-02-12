@@ -140,7 +140,7 @@ export default function AdminStaff() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Department Staff</CardTitle>
-              <CardDescription>System administrators and department officials.</CardDescription>
+              <CardDescription>System administrators and department officials (Consolidated with Users).</CardDescription>
             </div>
             <Dialog open={newStaffOpen} onOpenChange={setNewStaffOpen}>
               <DialogTrigger asChild>
@@ -183,21 +183,20 @@ export default function AdminStaff() {
                         <SelectValue placeholder="Select Role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Department Head">Department Head</SelectItem>
-                        <SelectItem value="Officer">Officer</SelectItem>
-                        <SelectItem value="Dispatcher">Dispatcher</SelectItem>
-                        <SelectItem value="Admin">System Admin</SelectItem>
+                        <SelectItem value="manager">Department Head</SelectItem>
+                        <SelectItem value="officer">Officer</SelectItem>
+                        <SelectItem value="officer">Dispatcher</SelectItem>  {/* Revisit if dispatcher needs specific role */}
+                        <SelectItem value="admin">System Admin</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="dept">Department ID</Label>
-                    {/* Ideally this should be a Select fetching departments, but simplifying for now */}
+                    <Label htmlFor="dept">Department ID (Optional for Admins)</Label>
                     <Input
                       type="number"
                       placeholder="Department ID (e.g. 1)"
                       value={staffForm.departmentId || ""}
-                      onChange={e => setStaffForm({ ...staffForm, departmentId: parseInt(e.target.value) })}
+                      onChange={e => setStaffForm({ ...staffForm, departmentId: parseInt(e.target.value) || undefined })}
                     />
                   </div>
                 </div>

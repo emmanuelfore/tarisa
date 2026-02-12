@@ -6,6 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "./storage";
+import { sendPushNotification } from "./lib/push";
 
 // Setup multer for photo uploads
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -37,6 +38,17 @@ const upload = multer({
     }
   }
 });
+import { z } from "zod";
+// Removed: import { scrypt, randomBytes } from "crypto";
+// Removed: import { promisify } from "util";
+
+// Removed: const scryptAsync = promisify(scrypt);
+
+// Removed: async function hashPassword(password: string) {
+// Removed:   const salt = randomBytes(16).toString("hex");
+// Removed:   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+// Removed:   return `${buf.toString("hex")}.${salt}`;
+// Removed: }
 import {
   insertCitizenSchema,
   insertDepartmentSchema,
@@ -55,18 +67,23 @@ import {
   type Citizen,
   type Broadcast,
   type Comment,
+  insertRoleSchema,
   ROLE_PERMISSIONS,
   type UserRole,
 } from "@shared/schema";
+import { resolveCoordinates } from "./services/location";
+import { z } from "zod";
 
 const SALT_ROUNDS = 10;
 
 declare module "express-session" {
   interface SessionData {
     userId?: number;
+    citizenId?: number; // Added for citizen auth
     userRole?: string;
     escalationLevel?: string;
     departmentId?: number | null;
+    jurisdictionId?: number | null;
     permissions?: string[];
   }
 }
@@ -106,6 +123,112 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  /**
+   * @swagger
+   * /reports/export:
+   *   get:
+   *     summary: Export issues to CSV
+   *     tags: [Reports]
+   *     parameters:
+   *       - in: query
+   *         name: status
+   *         schema: { type: string }
+   *       - in: query
+   *         name: start
+   *         schema: { type: string, format: date }
+   *       - in: query
+   *         name: end
+   *         schema: { type: string, format: date }
+   *     responses:
+   *       200:
+   *         description: CSV file download
+   */
+  app.get("/api/reports/export", requireRole("super_admin", "admin", "manager"), async (req, res) => {
+    try {
+      const filters = {
+        status: req.query.status as string,
+        startDate: req.query.start ? new Date(req.query.start as string) : undefined,
+        endDate: req.query.end ? new Date(req.query.end as string) : undefined,
+      };
+
+      const issues = await storage.listIssues(filters);
+
+      // CSV Header
+      let csv = "ID,Tracking ID,Title,Category,Status,Priority,Location,Created At,Citizen ID\n";
+
+      // CSV Rows
+      csv += issues.map(issue => {
+        return [
+          issue.id,
+          issue.trackingId,
+          `"${issue.title.replace(/"/g, '""')}"`, // Escape quotes
+          issue.category,
+          issue.status,
+          issue.priority,
+          `"${issue.location.replace(/"/g, '""')}"`,
+          issue.createdAt.toISOString(),
+          issue.citizenId
+        ].join(",");
+      }).join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="reports-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csv);
+
+    } catch (error) {
+      res.status(500).send("Failed to generate report");
+    }
+  });
+
+  // ============ NOTIFICATIONS ROUTES ============
+  /**
+   * @swagger
+   * /notifications:
+   *   get:
+   *     summary: List user notifications
+   *     tags: [Notifications]
+   *     responses:
+   *       200:
+   *         description: List of notifications
+   */
+  app.get("/api/notifications", requireAuth, async (req, res) => {
+    try {
+      // For citizens, we use citizenId (if linked) or just userId if we unify
+      // Currently issues use citizenId, but notifications use userId in schema
+      // Let's assume userId is consistent across session
+      const userId = req.session.userId!;
+      const notifications = await storage.listNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  /**
+   * @swagger
+   * /notifications/{id}/read:
+   *   patch:
+   *     summary: Mark notification as read
+   *     tags: [Notifications]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: integer }
+   *     responses:
+   *       200:
+   *         description: Notification updated
+   */
+  app.patch("/api/notifications/:id/read", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notification = await storage.markNotificationAsRead(id);
+      res.json(notification);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update notification" });
+    }
+  });
+
   app.use(
     session({
       secret: process.env.SESSION_SECRET || "tarisa-secret-key-change-in-production",
@@ -120,44 +243,179 @@ export async function registerRoutes(
 
 
 
+
   app.post("/api/auth/login", async (req, res) => {
     try {
+      console.log("[LOGIN] Request received:", { username: req.body.username, hasPassword: !!req.body.password });
+
       const { username, password } = req.body;
       if (!username || !password) {
+        console.log("[LOGIN] Missing credentials");
         return res.status(400).json({ error: "Username and password required" });
       }
 
+      console.log("[LOGIN] Looking up user:", username);
       const user = await storage.getUserByUsername(username);
       if (!user) {
+        console.log(`[LOGIN] User not found: ${username}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      console.log("[LOGIN] User found, verifying password...");
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
+        console.log(`[LOGIN] Password mismatch for user: ${username}`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      console.log("[LOGIN] Password valid, checking account status...");
       if (!user.active) {
+        console.log("[LOGIN] Account disabled");
         return res.status(403).json({ error: "Account is disabled" });
       }
 
-      // Calculate permissions: Role Defaults + Custom User Permissions
-      const roleDefaults = ROLE_PERMISSIONS[user.role as UserRole] || [];
+      console.log("[LOGIN] Loading permissions...");
+      // Calculate permissions: Role Defaults (from DB) + Custom User Permissions
+      let roleDefaults: string[] = [];
+      const roleDef = await storage.getRoleBySlug(user.role);
+      if (roleDef) {
+        roleDefaults = roleDef.permissions as string[];
+      } else {
+        // Fallback or legacy support if role not found in DB
+        roleDefaults = ROLE_PERMISSIONS[user.role as UserRole] || [];
+      }
+
       const userCustom = (user.permissions as string[]) || [];
       // Combine unique permissions
       const allPermissions = Array.from(new Set([...roleDefaults, ...userCustom]));
+
+      console.log("[LOGIN] Fetching officer details...");
+      // Fetch officer details to get jurisdictionId if applicable
+      const officer = await storage.getOfficerByUserId(user.id);
 
       req.session.userId = user.id;
       req.session.userRole = user.role;
       req.session.escalationLevel = user.escalationLevel;
       req.session.departmentId = user.departmentId;
+      req.session.jurisdictionId = officer?.jurisdictionId || null;
       req.session.permissions = allPermissions;
 
       const { password: _, ...safeUser } = user;
+      console.log("[LOGIN] Success! User logged in:", { id: user.id, username: user.username, role: user.role });
       res.json({ user: safeUser, message: "Logged in successfully" });
     } catch (error) {
+      console.error("[LOGIN] Error:", error);
       res.status(500).json({ error: "Internal login error" });
     }
+  });
+
+  // ============ CITIZEN AUTH ROUTES ============
+
+  app.post("/api/auth/citizen/register", async (req, res) => {
+    try {
+      const parsed = insertCitizenSchema.extend({
+        password: z.string().min(6), // Enforce min length
+        confirmPassword: z.string().optional(),
+        ward: z.string().optional(), // Match database schema
+      }).safeParse(req.body);
+
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors });
+      }
+
+      const { confirmPassword, ...citizenData } = parsed.data;
+
+      // Check for existing citizen by email
+      const existingEmail = await storage.getCitizenByEmail(citizenData.email);
+      if (existingEmail) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+
+      // Check for existing citizen by NID (if provided)
+      if (citizenData.nid) {
+        const existingNid = await storage.getCitizenByNid(citizenData.nid);
+        if (existingNid) {
+          return res.status(409).json({ error: "National ID already registered" });
+        }
+      }
+
+      const hashedPassword = await bcrypt.hash(citizenData.password, SALT_ROUNDS);
+
+      const citizen = await storage.createCitizen({
+        ...citizenData,
+        password: hashedPassword,
+        status: 'pending', // Default status
+        emailVerified: false,
+      });
+
+      // Auto-login
+      req.session.userId = citizen.id; // Use same session ID field or separate? 
+      // Re-using userId might be confusing if user and citizen IDs overlap.
+      // Better to use specific citizenId field we added to session.
+      req.session.citizenId = citizen.id;
+      req.session.userRole = 'citizen';
+
+      const { password: _, ...safeCitizen } = citizen;
+      res.status(201).json({ user: safeCitizen, message: "Registration successful" });
+
+    } catch (error: any) {
+      console.error("Registration error full details:", {
+        message: error.message,
+        stack: error.stack,
+        details: error
+      });
+      res.status(500).json({ error: "Registration failed. Please ensure all unique fields (Email/NID) are not already registered." });
+    }
+  });
+
+  app.post("/api/auth/citizen/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password required" });
+      }
+
+      const citizen = await storage.getCitizenByEmail(email);
+      if (!citizen) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const isValidPassword = await bcrypt.compare(password, citizen.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      if (citizen.status === "suspended") {
+        return res.status(403).json({ error: "Account is suspended" });
+      }
+
+      req.session.citizenId = citizen.id;
+      req.session.userRole = 'citizen';
+
+      const { password: _, ...safeCitizen } = citizen;
+      res.json({ user: safeCitizen, message: "Logged in successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.get("/api/user", async (req, res) => {
+    if (req.session.citizenId) {
+      const citizen = await storage.getCitizen(req.session.citizenId);
+      if (!citizen) return res.status(404).json({ error: "Citizen not found" });
+      const { password, ...safeCitizen } = citizen;
+      return res.json(safeCitizen);
+    }
+
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    const { password, ...safeUser } = user;
+    res.json(safeUser);
   });
 
 
@@ -210,38 +468,6 @@ export async function registerRoutes(
    *       401:
    *         description: Invalid credentials
    */
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { username, password } = req.body;
-      if (!username || !password) {
-        return res.status(400).json({ error: "Username and password required" });
-      }
-
-      const user = await storage.getUserByUsername(username);
-      if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      if (!user.active) {
-        return res.status(403).json({ error: "Account is disabled" });
-      }
-
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
-      req.session.escalationLevel = user.escalationLevel;
-      req.session.departmentId = user.departmentId;
-
-      const { password: _, ...safeUser } = user;
-      res.json({ user: safeUser, message: "Logged in successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Internal login error" });
-    }
-  });
   /**
    * @swagger
    * /auth/logout:
@@ -254,11 +480,344 @@ export async function registerRoutes(
    */
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
-      if (err) return res.status(500).json({ error: "Logout failed" });
-      res.json({ message: "Logged out successfully" });
+      if (err) return res.status(500).send("Failed to logout");
+      res.sendStatus(200);
     });
   });
 
+  // Password Reset Routes
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const citizen = await storage.getCitizenByEmail(email);
+      if (!citizen) {
+        // Return 200 even if not found to prevent enumeration
+        return res.json({ message: "If account exists, reset instructions sent." });
+      }
+
+      // Generate simple 6-digit token for MVP
+      const token = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = new Date(Date.now() + 3600000); // 1 hour
+
+      await storage.setResetToken(email, token, expiry);
+
+      // In production, send email here. For MVP, log it.
+      console.log(`[AUTH] Reset Token for ${email}: ${token}`);
+
+      res.json({ message: "If account exists, reset instructions sent." });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to process request" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { email, token, newPassword } = req.body;
+      const citizen = await storage.getCitizenByEmail(email);
+
+      if (!citizen || citizen.resetToken !== token || !citizen.resetTokenExpiry || new Date() > citizen.resetTokenExpiry) {
+        return res.status(400).json({ error: "Invalid or expired token" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+      await storage.updatePassword(email, hashedPassword);
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Profile Update
+  app.patch("/api/auth/profile", requireAuth, async (req, res) => {
+    try {
+      // Allow citizen to update their own profile
+
+      // If citizen
+      if (req.session.userId) {
+        // Re-fetch to ensure they exist
+        const user = await storage.getUser(req.session.userId);
+        if (user && user.email) {
+          const citizen = await storage.getCitizenByEmail(user.email);
+          if (citizen) {
+            const updated = await storage.updateCitizen(citizen.id, req.body);
+            return res.json(updated);
+          }
+        }
+      }
+
+      // Fallback if not mapped correctly or other user types
+      res.status(400).json({ error: "Profile update not available for this user type" });
+
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  app.post("/api/user/push-token", requireAuth, async (req, res) => {
+    try {
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ error: "Token required" });
+
+      if (req.session.userId) {
+        // Assuming citizen for now as main mobile user
+        const user = await storage.getUser(req.session.userId);
+        if (user && user.email) {
+          const citizen = await storage.getCitizenByEmail(user.email);
+          if (citizen) {
+            await storage.savePushToken(citizen.id, token);
+            return res.json({ success: true });
+          }
+        }
+      }
+      res.status(400).json({ error: "Could not associate token with user" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save push token" });
+    }
+  });
+
+  // ============ ROLES API ============
+
+  app.get("/api/roles", requireAuth, requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  });
+
+  app.post("/api/roles", requireAuth, requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const parsed = insertRoleSchema.parse(req.body);
+      const role = await storage.createRole(parsed);
+      res.status(201).json(role);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: error.errors });
+        return;
+      }
+      res.status(500).json({ error: "Failed to create role" });
+    }
+  });
+
+  app.patch("/api/roles/:slug", requireAuth, requireRole("super_admin"), async (req, res) => {
+    try {
+      const role = await storage.updateRole(req.params.slug, req.body);
+      if (!role) {
+        return res.status(404).json({ error: "Role not found" });
+      }
+      res.json(role);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update role" });
+    }
+  });
+
+  app.delete("/api/roles/:id", requireAuth, requireRole("super_admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteRole(id);
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete role" });
+    }
+  });
+
+  // ============ JURISDICTIONS API ============
+
+  app.post("/api/staff", requireAuth, async (req, res) => {
+    try {
+      const data = insertStaffSchema.parse(req.body);
+
+      // Check if user exists
+      const existingUser = await db.query.users.findFirst({
+        where: or(
+          eq(users.email, data.email || ""),
+          eq(users.username, data.email?.split('@')[0] || data.name.toLowerCase().replace(/\s+/g, '.'))
+        )
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: "User with this email already exists" });
+      }
+
+      // Create User
+      const hashedPassword = await bcrypt.hash("officer123", SALT_ROUNDS);
+      const [newUser] = await db.insert(users).values({
+        name: data.name,
+        email: data.email,
+        username: data.email?.split('@')[0] || data.name.toLowerCase().replace(/\s+/g, '.'),
+        password: hashedPassword,
+        role: (data.role as any) || "officer",
+        departmentId: data.departmentId,
+        active: true,
+        permissions: ["view_reports", "update_status"]
+      }).returning();
+
+      // Create Officer Record
+      await db.insert(officers).values({
+        userId: newUser.id,
+        fullName: data.name,
+        departmentId: data.departmentId,
+        role: data.role || "officer",
+        workEmail: data.email,
+        isActive: true,
+        employeeNumber: `EMP-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
+      });
+
+      res.status(201).json({
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+        departmentId: newUser.departmentId,
+        active: newUser.active
+      });
+
+    } catch (error) {
+      res.status(400).json({ error: "Invalid input" });
+    }
+  });
+
+  app.patch("/api/staff/:id", requireAuth, async (req, res) => {
+    const userId = parseInt(req.params.id);
+    const { active, role, departmentId } = req.body;
+
+    try {
+      const [updatedUser] = await db.update(users)
+        .set({ active, role, departmentId })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) return res.status(404).json({ error: "User not found" });
+
+      // Update officer record if exists
+      await db.update(officers)
+        .set({ isActive: active, role, departmentId })
+        .where(eq(officers.userId, userId));
+
+      res.json(updatedUser);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update staff" });
+    }
+  });
+
+  app.get("/api/jurisdictions", async (req, res) => {
+    try {
+      const level = req.query.level as string || undefined;
+      const results = await storage.listJurisdictions(level);
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch jurisdictions" });
+    }
+  });
+
+  app.get("/api/jurisdictions/:id", async (req, res) => {
+    try {
+      const result = await storage.getJurisdiction(parseInt(req.params.id));
+      if (!result) return res.status(404).json({ error: "Jurisdiction not found" });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch jurisdiction" });
+    }
+  });
+
+  app.post("/api/jurisdictions", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const result = await storage.createJurisdiction(req.body);
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create jurisdiction" });
+    }
+  });
+
+  // ============ ISSUE CATEGORIES API ============
+
+  app.get("/api/issue-categories", async (req, res) => {
+    try {
+      const results = await storage.listIssueCategories();
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  // Alias for frontend compatibility
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const results = await storage.listIssueCategories();
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.put("/api/categories/:code", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const result = await storage.updateIssueCategoryByCode(req.params.code, req.body);
+      if (!result) return res.status(404).json({ error: "Category not found" });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update category" });
+    }
+  });
+
+  app.post("/api/issue-categories", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const result = await storage.createIssueCategory(req.body);
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create category" });
+    }
+  });
+
+  // ============ OFFICERS API ============
+
+  app.get("/api/officers", requireRole("super_admin", "admin", "manager"), async (req, res) => {
+    try {
+      const results = await storage.listOfficers();
+      res.json(results);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch officers" });
+    }
+  });
+
+  app.post("/api/officers", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const result = await storage.createOfficer(req.body);
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create officer" });
+    }
+  });
+
+  app.patch("/api/officers/:id", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const result = await storage.updateOfficer(parseInt(req.params.id), req.body);
+      if (!result) return res.status(404).json({ error: "Officer not found" });
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update officer" });
+    }
+  });
+
+  // Legacy compatibility /api/regions (optional redirect or same logic)
+  app.get("/api/regions/provinces", async (req, res) => {
+    const results = await storage.listJurisdictions('province');
+    res.json(results);
+  });
+
+  app.get("/api/regions/authorities", async (req, res) => {
+    const results = await storage.listJurisdictions('local_authority');
+    res.json(results);
+  });
+
+  app.get("/api/regions/wards", async (req, res) => {
+    const results = await storage.listJurisdictions('ward');
+    res.json(results);
+  });
+
+  // ============ USERS/ADMIN ROUTES ============
   /**
    * @swagger
    * /auth/me:
@@ -288,6 +847,15 @@ export async function registerRoutes(
     }
     const { password: _, ...safeUser } = user;
     res.json({ user: safeUser });
+  });
+
+  app.get("/api/user/stats", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getUserStats(req.session.userId!);
+      res.json(stats);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch user stats" });
+    }
   });
 
 
@@ -609,6 +1177,29 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/staff/:id", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updated = await storage.updateStaff(id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Staff member not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update staff member" });
+    }
+  });
+
+  app.delete("/api/staff/:id", requireRole("super_admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteStaff(id);
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete staff member" });
+    }
+  });
+
   /**
    * @swagger
    * /staff/{id}:
@@ -774,6 +1365,23 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/citizens/:id", requireRole("super_admin", "admin"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      // Validate status if provided
+      if (req.body.status && !['pending', 'verified', 'suspended'].includes(req.body.status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+      const updated = await storage.updateCitizen(id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Citizen not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update citizen" });
+    }
+  });
+
   // ============ ISSUES ROUTES ============
   /**
    * @swagger
@@ -797,6 +1405,59 @@ export async function registerRoutes(
    *       200:
    *         description: List of filtered issues
    */
+  /**
+   * @swagger
+   * /issues/my:
+   *   get:
+   *     summary: Get current user's issues
+   *     tags: [Issues]
+   *     responses:
+   *       200:
+   *         description: List of user's issues
+   */
+  app.get("/api/issues/my", requireAuth, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user || !user.email) {
+        return res.json([]);
+      }
+
+      const citizen = await storage.getCitizenByEmail(user.email);
+      if (!citizen) {
+        return res.json([]);
+      }
+
+      const issues = await storage.listIssues({ citizenId: citizen.id });
+      res.json(issues);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch your issues" });
+    }
+  });
+
+  // STAFF MANAGEMENT (Migrated to use Users/Officers)
+  app.get("/api/staff", requireAuth, async (req, res) => {
+    // Return users who have roles that are considered "staff"
+    const staffUsers = await db.query.users.findMany({
+      where: inArray(users.role, ["admin", "manager", "officer", "super_admin"]),
+      with: {
+        department: true,
+      },
+      orderBy: desc(users.createdAt),
+    });
+
+    // Map to match the interface expected by the frontend
+    const mappedStaff = staffUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      departmentId: u.departmentId,
+      active: u.active
+    }));
+
+    res.json(mappedStaff);
+  });
+
   app.get("/api/issues", requireAuth, async (req, res) => {
     try {
       const { status, category, citizenId, departmentId, startDate, endDate } = req.query;
@@ -806,10 +1467,14 @@ export async function registerRoutes(
         query: req.query
       });
 
-      if (req.session.escalationLevel) {
+      // Super admin sees all issues, bypass escalation filtering
+      if (req.session.userRole !== 'super_admin' && req.session.escalationLevel) {
         const issues = await storage.listIssuesByEscalationLevel(
           req.session.escalationLevel as EscalationLevel,
-          req.session.departmentId || undefined
+          req.session.departmentId || undefined,
+          req.session.jurisdictionId || undefined,
+          startDate ? new Date(startDate as string) : undefined,
+          endDate ? new Date(endDate as string) : undefined
         );
         return res.json(issues);
       }
@@ -855,13 +1520,56 @@ export async function registerRoutes(
    */
   app.post("/api/issues", async (req, res) => {
     try {
-      const parsed = insertIssueSchema.safeParse(req.body);
+      let citizenId: number;
+
+      // Check if user is logged in
+      if (req.session.userId) {
+        // Bridge User -> Citizen
+        const user = await storage.getUser(req.session.userId);
+        if (user && user.email) {
+          const citizen = await storage.getCitizenByEmail(user.email);
+          if (citizen) {
+            citizenId = citizen.id;
+          } else {
+            // Link by creating a citizen record for this user
+            const newCitizen = await storage.createCitizen({
+              name: user.name,
+              email: user.email,
+              phone: "Verified User",
+              address: "Verified User",
+              ward: "Unknown",
+              emailVerified: true,
+              status: 'verified'
+            });
+            citizenId = newCitizen.id;
+          }
+        } else {
+          // Fallback if user found but no email (unlikely)
+          const anonymous = await storage.getOrCreateAnonymousCitizen();
+          citizenId = anonymous.id;
+        }
+      } else {
+        // Guest / Anonymous User
+        if (req.body.citizenId) {
+          citizenId = req.body.citizenId;
+        } else {
+          const anonymous = await storage.getOrCreateAnonymousCitizen();
+          citizenId = anonymous.id;
+        }
+      }
+
+      const parsed = insertIssueSchema.safeParse({
+        ...req.body,
+        citizenId,
+        autoAssigned: req.body.autoAssigned ?? false
+      });
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
       const issue = await storage.createIssue(parsed.data);
       res.status(201).json(issue);
     } catch (error) {
+      console.error("Issue creation error:", error);
       res.status(500).json({ error: "Failed to create issue" });
     }
   });
@@ -909,6 +1617,9 @@ export async function registerRoutes(
         priority: priority || "medium",
         severity: severity || 50,
         citizenId: anonymousCitizen.id,
+        jurisdictionId: req.body.jurisdictionId || null,
+        wardNumber: req.body.wardNumber || null,
+        suburb: req.body.suburb || null,
         photos: photos || [],
       });
 
@@ -970,6 +1681,43 @@ export async function registerRoutes(
 
   /**
    * @swagger
+   * /issues/nearby:
+   *   get:
+   *     summary: Check for nearby active issues
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: query
+   *         name: lat
+   *         required: true
+   *         schema: { type: number }
+   *       - in: query
+   *         name: lng
+   *         required: true
+   *         schema: { type: number }
+   *       - in: query
+   *         name: radius
+   *         schema: { type: number, default: 0.05 }
+   *     responses:
+   *       200:
+   *         description: List of nearby issues
+   */
+  app.get("/api/issues/nearby", async (req, res) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      const radius = req.query.radius ? parseFloat(req.query.radius as string) : 0.05;
+
+      if (isNaN(lat) || isNaN(lng)) return res.status(400).json({ error: "Lat/Lng required" });
+
+      const nearby = await storage.getNearbyIssues(lat, lng, radius);
+      res.json(nearby);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check nearby issues" });
+    }
+  });
+
+  /**
+   * @swagger
    * /issues/{id}:
    *   get:
    *     summary: Get issue details by ID
@@ -990,7 +1738,7 @@ export async function registerRoutes(
    *       404:
    *         description: Issue not found
    */
-  app.get("/api/issues/:id", requireAuth, async (req, res) => {
+  app.get("/api/issues/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const issue = await storage.getIssue(id);
@@ -1042,6 +1790,70 @@ export async function registerRoutes(
     }
   });
 
+
+  /**
+   * @swagger
+   * /issues/{id}/upvotes:
+   *   get:
+   *     summary: Get upvote count and status
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: integer }
+   *     responses:
+   *       200:
+   *         description: Upvote details
+   */
+  app.get("/api/issues/:id/upvotes", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const count = await storage.getUpvoteCount(id);
+      let userUpvoted = false;
+
+      // Check if current user upvoted
+      if (req.session.userId) {
+        // Bridge user -> citizen logic if needed, but for now we just track by user ID
+        // Note: storage.toggleUpvote uses userId directly in the upvotes table 
+        // which links to users(id) or citizens(id) depending on implementation.
+        // Let's assume userId is consistent.
+        userUpvoted = await storage.hasUserUpvoted(id, req.session.userId);
+      }
+
+      res.json({ count, userUpvoted });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get upvotes" });
+    }
+  });
+
+  /**
+   * @swagger
+   * /issues/{id}/upvote:
+   *   post:
+   *     summary: Toggle upvote for an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: integer }
+   *     responses:
+   *       200:
+   *         description: Upvote toggled
+   */
+  app.post("/api/issues/:id/upvote", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const result = await storage.toggleUpvote(id, req.session.userId, req.session.userRole || 'citizen');
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to toggle upvote" });
+    }
+  });
+
   /**
    * @swagger
    * /issues/{id}:
@@ -1062,6 +1874,10 @@ export async function registerRoutes(
    *     responses:
    *       200:
    *         description: Issue updated
+   *       404:
+   *         description: Issue not found
+   *       403:
+   *         description: Unauthorized
    */
   app.patch("/api/issues/:id", requireAuth, async (req, res) => {
     try {
@@ -1080,6 +1896,23 @@ export async function registerRoutes(
       }
 
       const issue = await storage.updateIssue(id, req.body);
+
+      // Notification Logic: Status Change
+      if (req.body.status && req.body.status !== existingIssue.status) {
+        const notif = await storage.createNotification({
+          userId: existingIssue.citizenId,
+          title: 'Issue Status Updated',
+          message: `Your report "${existingIssue.title}" has been updated to ${req.body.status}.`,
+          type: 'info'
+        });
+
+        // Push Notification
+        const citizen = await storage.getCitizen(existingIssue.citizenId);
+        if (citizen && citizen.pushToken) {
+          await sendPushNotification(citizen.pushToken, notif.title, notif.message, { issueId: id });
+        }
+      }
+
       res.json(issue);
     } catch (error) {
       res.status(500).json({ error: "Failed to update issue" });
@@ -1184,9 +2017,49 @@ export async function registerRoutes(
         user: req.session.userRole || 'System',
       });
 
+      // Notify Citizen
+      const notif = await storage.createNotification({
+        userId: issue.citizenId,
+        title: 'Issue Escalated',
+        message: `Your report "${issue.title}" has been escalated to ${nextLevel} for further attention.`,
+        type: 'info'
+      });
+
+      // Push Notification
+      const citizen = await storage.getCitizen(issue.citizenId);
+      if (citizen && citizen.pushToken) {
+        await sendPushNotification(citizen.pushToken, notif.title, notif.message, { issueId: id });
+      }
+
       res.json(updatedIssue);
     } catch (error) {
       res.status(500).json({ error: "Failed to escalate issue" });
+    }
+  });
+
+  /**
+   * @swagger
+   * /issues/{id}/timeline:
+   *   get:
+   *     summary: Get timeline events for an issue
+   *     tags: [Issues]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of timeline events
+   */
+  app.get("/api/issues/:id/timeline", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const timeline = await storage.listTimelineByIssue(id);
+      res.json(timeline);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch timeline" });
     }
   });
 
@@ -1246,20 +2119,96 @@ export async function registerRoutes(
   app.post("/api/issues/:id/comments", async (req, res) => {
     try {
       const issueId = parseInt(req.params.id);
-      const issue = await storage.getIssue(issueId);
-      if (!issue) {
-        return res.status(404).json({ error: "Issue not found" });
+      let userId: number;
+      let userType: string;
+      let userName: string;
+
+      if (req.session.citizenId) {
+        const citizen = await storage.getCitizen(req.session.citizenId);
+        if (!citizen) return res.status(404).json({ error: "Citizen not found" });
+        userId = citizen.id;
+        userType = 'citizen';
+        userName = citizen.name;
+      } else if (req.session.userId) {
+        const user = await storage.getUser(req.session.userId);
+        if (!user) return res.status(404).json({ error: "User not found" });
+        userId = user.id;
+        userType = user.role;
+        userName = user.name;
+      } else {
+        return res.status(401).json({ error: "Authentication required to comment" });
       }
 
-      const parsed = insertCommentSchema.safeParse({ ...req.body, issueId });
+      const parsed = insertCommentSchema.safeParse({
+        ...req.body,
+        issueId,
+        userId,
+        userType,
+        userName
+      });
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors });
       }
 
       const comment = await storage.createComment(parsed.data);
+
+      // Notify Citizen if comment is from Admin/Staff
+      if (req.session.userRole && req.session.userRole !== 'citizen') {
+        const issue = await storage.getIssue(issueId);
+        if (issue) {
+          const notif = await storage.createNotification({
+            userId: issue.citizenId,
+            title: 'New Comment on Report',
+            message: `Official Update: ${parsed.data.text.substring(0, 50)}${parsed.data.text.length > 50 ? '...' : ''}`,
+            type: 'info'
+          });
+
+          // Push Notification
+          const citizen = await storage.getCitizen(issue.citizenId);
+          if (citizen && citizen.pushToken) {
+            await sendPushNotification(citizen.pushToken, notif.title, notif.message, { issueId: issueId });
+          }
+        }
+      }
+
       res.status(201).json(comment);
     } catch (error) {
+      console.error("Failed to create comment:", error);
       res.status(500).json({ error: "Failed to create comment" });
+    }
+  });
+
+  app.get("/api/issues/map", async (req, res) => {
+    try {
+      const data = await storage.getIssuesForMap();
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch map data" });
+    }
+  });
+
+  app.post("/api/issues/:id/upvote", requireAuth, async (req, res) => {
+    try {
+      const issueId = parseInt(req.params.id);
+      const userId = req.session.userId!;
+      // Assuming citizen role
+      const result = await storage.toggleUpvote(issueId, userId, "citizen");
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: "Failed to toggle upvote" });
+    }
+  });
+
+  app.get("/api/issues/:id/upvotes", async (req, res) => {
+    try {
+      const issueId = parseInt(req.params.id);
+      const count = await storage.getUpvoteCount(issueId);
+      const userUpvoted = req.session.userId
+        ? await storage.hasUserUpvoted(issueId, req.session.userId)
+        : false;
+      res.json({ count, userUpvoted });
+    } catch (e) {
+      res.status(500).json({ error: "Failed to fetch upvotes" });
     }
   });
 
@@ -1579,6 +2528,121 @@ export async function registerRoutes(
       res.send(html);
     } catch (error) {
       res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  // ============ DEPARTMENTS CRUD ============
+
+  app.get("/api/departments", async (req, res) => {
+    try {
+      const depts = await db.select().from(departments);
+      res.json(depts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch departments" });
+    }
+  });
+
+  app.get("/api/departments/:id", async (req, res) => {
+    try {
+      const [dept] = await db.select().from(departments).where(eq(departments.id, parseInt(req.params.id)));
+      if (!dept) {
+        return res.status(404).json({ error: "Department not found" });
+      }
+      res.json(dept);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch department" });
+    }
+  });
+
+  app.post("/api/departments", async (req, res) => {
+    try {
+      const [newDept] = await db.insert(departments).values(req.body).returning();
+      res.status(201).json(newDept);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create department" });
+    }
+  });
+
+  app.put("/api/departments/:id", async (req, res) => {
+    try {
+      const [updated] = await db
+        .update(departments)
+        .set(req.body)
+        .where(eq(departments.id, parseInt(req.params.id)))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ error: "Department not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update department" });
+    }
+  });
+
+  app.delete("/api/departments/:id", async (req, res) => {
+    try {
+      await db.delete(departments).where(eq(departments.id, parseInt(req.params.id)));
+      res.json({ message: "Department deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete department" });
+    }
+  });
+
+  // ============ CATEGORIES CRUD ============
+
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const cats = await db.select().from(issueCategories);
+      res.json(cats);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.get("/api/categories/:code", async (req, res) => {
+    try {
+      const [cat] = await db.select().from(issueCategories).where(eq(issueCategories.code, req.params.code));
+      if (!cat) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.json(cat);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch category" });
+    }
+  });
+
+  app.post("/api/categories", async (req, res) => {
+    try {
+      const [newCat] = await db.insert(issueCategories).values(req.body).returning();
+      res.status(201).json(newCat);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create category" });
+    }
+  });
+
+  app.put("/api/categories/:code", async (req, res) => {
+    try {
+      const [updated] = await db
+        .update(issueCategories)
+        .set(req.body)
+        .where(eq(issueCategories.code, req.params.code))
+        .returning();
+      if (!updated) {
+        return res.status(404).json({ error: "Category not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update category" });
+    }
+  });
+
+  app.delete("/api/categories/:code", async (req, res) => {
+    try {
+      await db.delete(issueCategories).where(eq(issueCategories.code, req.params.code));
+      res.json({ message: "Category deleted" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete category" });
     }
   });
 

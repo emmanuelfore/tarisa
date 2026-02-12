@@ -1,0 +1,17 @@
+﻿--- Starting User Diagnosis ---
+Total users found: 3
+User: superadmin
+  - Role: super_admin
+  - Password Length: 60
+  - Is Hashed (bcrypt): true
+  - Hash prefix: $2b$10$sa2...
+User: townhouse
+  - Role: admin
+  - Password Length: 60
+  - Is Hashed (bcrypt): true
+  - Hash prefix: $2b$10$NWp...
+User: ward_officer
+  - Role: officer
+  - Password Length: 60
+  - Is Hashed (bcrypt): true
+  - Hash prefix: $2b$10$jXR...

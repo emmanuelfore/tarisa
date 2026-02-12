@@ -17,25 +17,43 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
-const CATEGORIES = [
-  { id: 'roads', label: 'Roads', icon: '🚧' },
-  { id: 'water', label: 'Water', icon: '💧' },
-  { id: 'sewer', label: 'Sewer', icon: '🕳️' },
-  { id: 'waste', label: 'Waste', icon: '🗑️' },
-  { id: 'lights', label: 'Lights', icon: '💡' },
-  { id: 'other', label: 'Other', icon: '📝' },
-];
+// Categories are now fetched from API
+interface Category {
+  id: number;
+  name: string;
+  icon: string;
+  code: string;
+}
+
+interface Jurisdiction {
+  id: number;
+  name: string;
+  level: string;
+  parentId: number | null;
+}
 
 interface ReportData {
   photos: string[];
   location: string;
   coordinates: string;
   category: string;
+  categoryId: number | null;
   severity: number;
   description: string;
   title: string;
+  jurisdictionId: number | null;
+  wardNumber: string;
+  suburb: string;
 }
 
 export default function ReportIssue() {
@@ -44,15 +62,27 @@ export default function ReportIssue() {
   const [, setLocation] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewPhotos, setPreviewPhotos] = useState<string[]>([]);
-  
+
   const [reportData, setReportData] = useState<ReportData>({
     photos: [],
-    location: "123 Samora Machel Avenue, Harare",
-    coordinates: "-17.8292,31.0522",
+    location: "Loading location...",
+    coordinates: "",
     category: "",
+    categoryId: null,
     severity: 50,
     description: "",
     title: "",
+    jurisdictionId: null,
+    wardNumber: "",
+    suburb: "",
+  });
+
+  const { data: apiCategories } = useQuery<Category[]>({
+    queryKey: ['/api/issue-categories'],
+  });
+
+  const { data: jurisdictions } = useQuery<Jurisdiction[]>({
+    queryKey: ['/api/jurisdictions'],
   });
 
   const nextStep = () => setStep(s => s + 1);
@@ -90,14 +120,17 @@ export default function ReportIssue() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: reportData.title || `${category} Issue Report`,
-          description: reportData.description || `Reported issue in ${category} category`,
-          category: category,
+          title: reportData.title || `${reportData.category} Issue Report`,
+          description: reportData.description || `Reported issue in ${reportData.category} category`,
+          category: reportData.category,
           location: reportData.location,
           coordinates: reportData.coordinates,
           severity: reportData.severity,
           priority: reportData.severity >= 75 ? 'high' : reportData.severity >= 50 ? 'medium' : 'low',
           photos: reportData.photos,
+          jurisdictionId: reportData.jurisdictionId,
+          wardNumber: reportData.wardNumber,
+          suburb: reportData.suburb,
         }),
       });
       if (!res.ok) throw new Error('Submission failed');
@@ -138,8 +171,8 @@ export default function ReportIssue() {
     }));
   };
 
-  const selectCategory = (categoryId: string) => {
-    setReportData(prev => ({ ...prev, category: categoryId }));
+  const selectCategory = (cat: Category) => {
+    setReportData(prev => ({ ...prev, category: cat.name, categoryId: cat.id }));
   };
 
   const getSeverityLabel = (value: number) => {
@@ -160,11 +193,11 @@ export default function ReportIssue() {
         onChange={handlePhotoSelect}
         data-testid="input-photo-file"
       />
-      
+
       <div className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-100 sticky top-0 z-30">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => step === 1 ? setLocation('/citizen/home') : prevStep()}
           data-testid="button-back"
         >
@@ -172,15 +205,15 @@ export default function ReportIssue() {
         </Button>
         <span className="font-heading font-semibold text-lg">Report Issue</span>
         <div className="w-10 text-center text-sm font-medium text-gray-500" data-testid="text-step-indicator">
-          {step}/4
+          {step}/5
         </div>
       </div>
 
       <div className="p-6">
         <div className="w-full bg-gray-100 h-1.5 rounded-full mb-8 overflow-hidden">
-          <div 
+          <div
             className="bg-primary h-full transition-all duration-300 ease-out"
-            style={{ width: `${(step / 4) * 100}%` }}
+            style={{ width: `${(step / 5) * 100}%` }}
           />
         </div>
 
@@ -196,7 +229,7 @@ export default function ReportIssue() {
                 {previewPhotos.map((photo, index) => (
                   <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
                     <img src={photo} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                    <button 
+                    <button
                       onClick={() => removePhoto(index)}
                       className="absolute top-2 right-2 bg-black/50 rounded-full p-1"
                       data-testid={`button-remove-photo-${index}`}
@@ -206,7 +239,7 @@ export default function ReportIssue() {
                   </div>
                 ))}
                 {previewPhotos.length < 5 && (
-                  <button 
+                  <button
                     onClick={() => fileInputRef.current?.click()}
                     className="aspect-square bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center"
                     data-testid="button-add-more-photos"
@@ -217,7 +250,7 @@ export default function ReportIssue() {
                 )}
               </div>
             ) : (
-              <button 
+              <button
                 onClick={() => fileInputRef.current?.click()}
                 className="w-full aspect-[4/3] bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
                 data-testid="button-take-photo"
@@ -230,9 +263,9 @@ export default function ReportIssue() {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              <Button 
-                variant="outline" 
-                className="h-12" 
+              <Button
+                variant="outline"
+                className="h-12"
                 onClick={() => fileInputRef.current?.click()}
                 data-testid="button-gallery"
               >
@@ -242,7 +275,7 @@ export default function ReportIssue() {
                 Skip Photo
               </Button>
             </div>
-            
+
             {previewPhotos.length > 0 && (
               <Button className="w-full h-12 text-lg" onClick={nextStep} data-testid="button-next-step-1">
                 Next Step <ChevronRight className="ml-2 h-4 w-4" />
@@ -272,7 +305,7 @@ export default function ReportIssue() {
             </Button>
 
             <Button className="w-full h-12 text-lg" onClick={nextStep} data-testid="button-confirm-location">
-              Confirm Location <ChevronRight className="ml-2 h-4 w-4" />
+              Confirm & Continue <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
@@ -280,24 +313,97 @@ export default function ReportIssue() {
         {step === 3 && (
           <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="text-center space-y-2">
+              <h2 className="text-2xl font-heading font-bold text-gray-900">Select Area</h2>
+              <p className="text-gray-500">Please select your local authority and ward.</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Local Authority</Label>
+                <Select
+                  onValueChange={(v: string) => {
+                    const id = parseInt(v);
+                    const auth = jurisdictions?.find((j: Jurisdiction) => j.id === id);
+                    if (auth) {
+                      setReportData(prev => ({ ...prev, jurisdictionId: id, wardNumber: "", suburb: "" }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Select Local Authority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {jurisdictions?.filter((j: Jurisdiction) => j.level === 'local_authority').map((auth: Jurisdiction) => (
+                      <SelectItem key={auth.id} value={auth.id.toString()}>{auth.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ward</Label>
+                <Select
+                  disabled={!reportData.jurisdictionId}
+                  onValueChange={(v: string) => {
+                    const ward = jurisdictions?.find((j: Jurisdiction) => j.id === parseInt(v));
+                    if (ward) {
+                      setReportData(prev => ({ ...prev, wardNumber: ward.name }));
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12">
+                    <SelectValue placeholder="Select Ward" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {jurisdictions?.filter((j: Jurisdiction) => j.level === 'ward' && j.parentId === reportData.jurisdictionId).map((ward: Jurisdiction) => (
+                      <SelectItem key={ward.id} value={ward.id.toString()}>{ward.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Suburb (Optional)</Label>
+                <Input
+                  className="h-12"
+                  placeholder="e.g. Avondale, Mbare"
+                  value={reportData.suburb}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReportData(prev => ({ ...prev, suburb: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <Button
+              className="w-full h-12 text-lg"
+              onClick={nextStep}
+              disabled={!reportData.wardNumber}
+              data-testid="button-confirm-jurisdiction"
+            >
+              Confirm Area <ChevronRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+            <div className="text-center space-y-2">
               <h2 className="text-2xl font-heading font-bold text-gray-900">Issue Details</h2>
               <p className="text-gray-500">Categorize the problem so we send the right team.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {CATEGORIES.map(cat => (
-                <button 
+              {apiCategories?.map((cat: Category) => (
+                <button
                   key={cat.id}
-                  onClick={() => selectCategory(cat.id)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border bg-white transition-all active:scale-95 ${
-                    reportData.category === cat.id 
-                      ? 'border-primary bg-primary/5 ring-2 ring-primary' 
-                      : 'border-gray-200 hover:border-primary/50 hover:bg-primary/5'
-                  }`}
-                  data-testid={`button-category-${cat.id}`}
+                  onClick={() => selectCategory(cat)}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border bg-white transition-all active:scale-95 ${reportData.categoryId === cat.id
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary'
+                    : 'border-gray-200 hover:border-primary/50 hover:bg-primary/5'
+                    }`}
+                  data-testid={`button-category-${cat.code}`}
                 >
                   <span className="text-3xl mb-2">{cat.icon}</span>
-                  <span className="text-sm font-medium text-gray-700">{cat.label}</span>
+                  <span className="text-sm font-medium text-gray-700">{cat.name}</span>
                 </button>
               ))}
             </div>
@@ -305,9 +411,9 @@ export default function ReportIssue() {
             <div className="space-y-3">
               <Label>Severity Level: <span className="font-bold">{getSeverityLabel(reportData.severity)}</span></Label>
               <div className="pt-2 px-2">
-                <Slider 
-                  value={[reportData.severity]} 
-                  max={100} 
+                <Slider
+                  value={[reportData.severity]}
+                  max={100}
                   step={1}
                   onValueChange={(val) => setReportData(prev => ({ ...prev, severity: val[0] }))}
                   data-testid="slider-severity"
@@ -321,18 +427,18 @@ export default function ReportIssue() {
               </div>
             </div>
 
-            <Button 
-              className="w-full h-12 text-lg mt-4" 
+            <Button
+              className="w-full h-12 text-lg mt-4"
               onClick={nextStep}
               disabled={!reportData.category}
-              data-testid="button-next-step-3"
+              data-testid="button-next-step-4"
             >
               Next Step <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
             <div className="text-center space-y-2">
               <h2 className="text-2xl font-heading font-bold text-gray-900">Review Report</h2>
@@ -349,19 +455,19 @@ export default function ReportIssue() {
                   </div>
                   <div>
                     <h3 className="font-medium text-gray-900" data-testid="text-review-category">
-                      {CATEGORIES.find(c => c.id === reportData.category)?.label || 'Issue'} Report
+                      {reportData.category} Report
                     </h3>
                     <p className="text-sm text-gray-500" data-testid="text-review-severity">
-                      {reportData.category.charAt(0).toUpperCase() + reportData.category.slice(1)} - {getSeverityLabel(reportData.severity)} Severity
+                      {getSeverityLabel(reportData.severity)} Severity
                     </p>
                     <p className="text-xs text-gray-400 mt-1" data-testid="text-review-location">{reportData.location}</p>
                   </div>
                 </div>
-                
+
                 <div className="border-t border-gray-200 pt-3">
                   <Label className="text-xs text-gray-500 uppercase tracking-wider mb-2 block">Description</Label>
-                  <Textarea 
-                    placeholder="Add more details (optional)..." 
+                  <Textarea
+                    placeholder="Add more details (optional)..."
                     className="bg-white"
                     value={reportData.description}
                     onChange={(e) => setReportData(prev => ({ ...prev, description: e.target.value }))}
@@ -376,9 +482,9 @@ export default function ReportIssue() {
               <p>We checked for duplicates and found no similar reports in this area. You're good to go!</p>
             </div>
 
-            <Button 
-              className="w-full h-14 text-lg bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20" 
-              onClick={() => submitMutation.mutate()} 
+            <Button
+              className="w-full h-14 text-lg bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+              onClick={() => submitMutation.mutate()}
               disabled={submitMutation.isPending}
               data-testid="button-submit-report"
             >

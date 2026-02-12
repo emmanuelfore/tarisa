@@ -59,6 +59,13 @@ export default function AdminBroadcast() {
     queryKey: ["/api/broadcasts"],
   });
 
+  const { data: jurisdictions = [] } = useQuery<any[]>({
+    queryKey: ["/api/jurisdictions"],
+  });
+
+  const districts = jurisdictions.filter(j => j.level === 'district' || j.level === 'council');
+  const wards = jurisdictions.filter(j => j.level === 'ward');
+
   const sendBroadcastMutation = useMutation({
     mutationFn: async (data: Partial<Broadcast>) => {
       const res = await apiRequest("POST", "/api/broadcasts", data);
@@ -92,16 +99,31 @@ export default function AdminBroadcast() {
       return;
     }
 
+    // Resolve target IDs to names for display/logging if needed, 
+    // but typically we'd send IDs. For now keeping text as per original, 
+    // or mapping if the backend expects IDs. 
+    // Assuming backend expects strings for targetWards based on schema default.
+    let targetList: string[] = ["All Wards"];
+
+    if (targetType === 'district') {
+      // In a real app we might select a specific district ID. 
+      // For this UI, if we are just selecting "District" type, 
+      // we might want a dropdown to select WHICH district.
+      // The UI below adds a Select for this.
+    }
+
     const payload = {
       title,
       message,
       severity,
-      targetWards: targetType === 'all' ? ["All Wards"] : targetType === 'district' ? ["Selected District"] : ["Selected Wards"],
-      createdBy: "Admin", // Should come from session in a real app
+      targetWards: targetType === 'all' ? ["All Wards"] : [selectedLocation], // Simplified for demo
+      createdBy: "Admin",
     };
 
     sendBroadcastMutation.mutate(payload);
   };
+
+  const [selectedLocation, setSelectedLocation] = useState("");
 
   return (
     <AdminLayout>
@@ -139,7 +161,10 @@ export default function AdminBroadcast() {
                 <RadioGroup
                   defaultValue="all"
                   value={targetType}
-                  onValueChange={setTargetType}
+                  onValueChange={(val) => {
+                    setTargetType(val);
+                    setSelectedLocation("");
+                  }}
                   className="grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                   <div className={`flex items-center space-x-2 border rounded-lg p-4 cursor-pointer transition-colors ${targetType === 'all' ? 'border-primary bg-primary/5' : 'border-gray-200'}`}>
@@ -165,15 +190,25 @@ export default function AdminBroadcast() {
 
               {(targetType === 'district' || targetType === 'ward') && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <Label>Select Location</Label>
-                  <Select>
+                  <Label>Select {targetType === 'district' ? 'District' : 'Ward'}</Label>
+                  <Select value={selectedLocation} onValueChange={setSelectedLocation}>
                     <SelectTrigger>
                       <SelectValue placeholder={`Select ${targetType === 'district' ? 'District' : 'Ward'}`} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Central Business District</SelectItem>
-                      <SelectItem value="2">Northern Suburbs</SelectItem>
-                      <SelectItem value="3">High Density Areas</SelectItem>
+                      {targetType === 'district' ? (
+                        districts.length > 0 ? (
+                          districts.map(d => (
+                            <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                          ))
+                        ) : <SelectItem value="no_districts" disabled>No districts found</SelectItem>
+                      ) : (
+                        wards.length > 0 ? (
+                          wards.map(w => (
+                            <SelectItem key={w.id} value={w.name}>{w.name}</SelectItem>
+                          ))
+                        ) : <SelectItem value="no_wards" disabled>No wards found</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

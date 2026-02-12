@@ -17,6 +17,10 @@ export const citizens = pgTable("citizens", {
   verificationToken: text("verification_token"),
   verifiedAt: timestamp("verified_at"),
   status: text("status").notNull().default("pending"), // pending, verified, suspended
+  password: text("password").notNull().default('$2b$10$EpRnTzVlqHNP0.f0T2u16.tABCdefg'), // Default placeholder hash for existing users
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
+  pushToken: text("push_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -24,59 +28,212 @@ export const citizensRelations = relations(citizens, ({ many }) => ({
   issues: many(issues),
 }));
 
-// Departments/Authorities
-export const departments = pgTable("departments", {
+// Jurisdictions (Unified Hierarchy: Country -> Province -> District -> Ward -> Suburb)
+export const jurisdictions = pgTable("jurisdictions", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-  type: text("type").notNull(), // Municipal, Parastatal, Police, Government
-  contactPhone: text("contact_phone"),
-  contactEmail: text("contact_email"),
+  code: varchar("code", { length: 50 }).notNull().unique(), // e.g., "ZW-HA-W17"
+  name: text("name").notNull(),
+  nameShona: text("name_shona"),
+
+  level: varchar("level", { length: 50 }).notNull(), // country, province, district, constituency, ward, suburb
+  parentId: integer("parent_id"), // Recursive reference logic handled in types/app
+
+  boundaryGeom: jsonb("boundary_geom").$type<any>(), // GeoJSON fallback
+  centerPoint: jsonb("center_point").$type<{ lat: number, lng: number }>(),
+  areaSqKm: integer("area_sq_km"),
+
+  officialName: text("official_name"),
+  shortName: varchar("short_name", { length: 100 }),
+
+  officeAddress: text("office_address"),
+  officePhone: varchar("office_phone", { length: 20 }),
+  officeEmail: varchar("office_email", { length: 255 }),
+  website: varchar("website", { length: 255 }),
+
+  councilorName: text("councilor_name"),
+  councilorPhone: varchar("councilor_phone", { length: 20 }),
+  councilorEmail: varchar("councilor_email", { length: 255 }),
+  mayorName: text("mayor_name"),
+
+  isActive: boolean("is_active").default(true).notNull(),
+  acceptsReports: boolean("accepts_reports").default(true).notNull(),
+  serviceProvider: varchar("service_provider", { length: 100 }), // e.g., 'Harare City Council'
+
+  totalIssues: integer("total_issues").default(0).notNull(),
+  resolvedIssues: integer("resolved_issues").default(0).notNull(),
+  avgResolutionHours: integer("avg_resolution_hours").default(0),
+  lastResponseAt: timestamp("last_response_at"),
+
+  population: integer("population"),
+  households: integer("households"),
+  urbanRural: varchar("urban_rural", { length: 10 }), // urban, rural, mixed
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const departmentsRelations = relations(departments, ({ many }) => ({
-  staff: many(staff),
+export const jurisdictionsRelations = relations(jurisdictions, ({ one, many }) => ({
+  parent: one(jurisdictions, {
+    fields: [jurisdictions.parentId],
+    references: [jurisdictions.id],
+    relationName: "parent_jurisdiction",
+  }),
+  children: many(jurisdictions, {
+    relationName: "parent_jurisdiction",
+  }),
+  departments: many(departments),
+  issues: many(issues),
+  officers: many(officers),
+}));
+
+// Issue Categories configuration
+export const issueCategories = pgTable("issue_categories", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 50 }).notNull().unique(), // pothole, water_leak
+  name: text("name").notNull(),
+  nameShona: text("name_shona"),
+  parentCategory: varchar("parent_category", { length: 50 }), // roads, water, etc.
+  icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 7 }),
+
+  defaultDepartmentCategory: varchar("default_department_category", { length: 100 }),
+  priorityLevel: varchar("priority_level", { length: 20 }).default("medium").notNull(),
+
+  responseTimeHours: integer("response_time_hours").default(48),
+  resolutionTimeHours: integer("resolution_time_hours").default(168),
+
+  requiresPhoto: boolean("requires_photo").default(true).notNull(),
+  requiresVideo: boolean("requires_video").default(false).notNull(),
+  minVerifications: integer("min_verifications").default(2).notNull(),
+
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Departments (Updated for new hierarchy)
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  jurisdictionId: integer("jurisdiction_id").references(() => jurisdictions.id),
+
+  code: varchar("code", { length: 50 }),
+  name: text("name").notNull().unique(),
+  nameShona: text("name_shona"),
+
+  category: varchar("category", { length: 100 }), // roads, water, sewer, etc.
+  type: text("type"), // Municipal, Parastatal, Police, Government
+
+  headOfDepartment: text("head_of_department"),
+  email: varchar("email", { length: 255 }),
+  phone: varchar("phone", { length: 20 }),
+  officeLocation: text("office_location"),
+
+  responseTimeSlaHours: integer("response_time_sla_hours").default(48),
+  resolutionTimeSlaHours: integer("resolution_time_sla_hours").default(168),
+
+  handlesCategories: jsonb("handles_categories").$type<string[]>().default([]),
+
+  totalAssigned: integer("total_assigned").default(0),
+  totalResolved: integer("total_resolved").default(0),
+  avgResolutionTime: integer("avg_resolution_time"),
+
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const departmentsRelations = relations(departments, ({ one, many }) => ({
+  jurisdiction: one(jurisdictions, {
+    fields: [departments.jurisdictionId],
+    references: [jurisdictions.id],
+  }),
+  officers: many(officers),
+  issues: many(issues),
+  staff: many(staff), // Backwards compatibility
+}));
+
+
+export const issueCategoriesRelations = relations(issueCategories, ({ many }) => ({
   issues: many(issues),
 }));
 
-// Staff members
-export const staff = pgTable("staff", {
+// Officers (Service Delivery Personnel)
+export const officers = pgTable("officers", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  departmentId: integer("department_id").references(() => departments.id).notNull(),
-  phone: text("phone"),
-  email: text("email"),
-  active: boolean("active").default(true).notNull(),
+  userId: integer("user_id").references(() => users.id),
+
+  employeeNumber: varchar("employee_number", { length: 50 }).unique(),
+  fullName: text("full_name").notNull(),
+  title: varchar("title", { length: 100 }),
+
+  departmentId: integer("department_id").references(() => departments.id),
+  jurisdictionId: integer("jurisdiction_id").references(() => jurisdictions.id),
+  assignedWards: jsonb("assigned_wards").$type<number[]>().default([]),
+
+  workEmail: varchar("work_email", { length: 255 }),
+  workPhone: varchar("work_phone", { length: 20 }),
+
+  role: varchar("role", { length: 50 }), // field_officer, supervisor, etc.
+  canVerifyIssues: boolean("can_verify_issues").default(true).notNull(),
+  canAssignIssues: boolean("can_assign_issues").default(false).notNull(),
+  canCloseIssues: boolean("can_close_issues").default(true).notNull(),
+
+  assignedIssuesCount: integer("assigned_issues_count").default(0),
+  resolvedIssuesCount: integer("resolved_issues_count").default(0),
+  avgResolutionHours: integer("avg_resolution_hours"),
+  rating: integer("rating"),
+
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const staffRelations = relations(staff, ({ one, many }) => ({
+export const officersRelations = relations(officers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [officers.userId],
+    references: [users.id],
+  }),
   department: one(departments, {
-    fields: [staff.departmentId],
+    fields: [officers.departmentId],
     references: [departments.id],
   }),
-  assignedIssues: many(issues),
+  jurisdiction: one(jurisdictions, {
+    fields: [officers.jurisdictionId],
+    references: [jurisdictions.id],
+  }),
+  assignedIssues: many(issues, { relationName: "officer_issues" }),
 }));
 
-// Issues/Reports
+// Issues/Reports (Updated with jurisdiction links)
 export const issues = pgTable("issues", {
   id: serial("id").primaryKey(),
-  trackingId: text("tracking_id").notNull().unique(), // TAR-2025-XXXX
+  trackingId: text("tracking_id").notNull().unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  category: text("category").notNull(), // Roads, Water, Sewer, Lights, Waste, etc.
+  category: text("category").notNull(),
   location: text("location").notNull(),
-  coordinates: text("coordinates"), // lat,lng
-  status: text("status").notNull().default("submitted"), // submitted, verified, in_progress, resolved, rejected
-  priority: text("priority").notNull().default("medium"), // low, medium, high, critical
-  severity: integer("severity").default(50), // 0-100 for heatmap
+  coordinates: text("coordinates"),
+  status: text("status").notNull().default("submitted"),
+  priority: text("priority").notNull().default("medium"),
+  severity: integer("severity").default(50),
 
   citizenId: integer("citizen_id").references(() => citizens.id).notNull(),
 
   assignedDepartmentId: integer("assigned_department_id").references(() => departments.id),
   assignedStaffId: integer("assigned_staff_id").references(() => staff.id),
-  escalationLevel: text("escalation_level").default("L1").notNull(), // L1-L4
+  assignedOfficerId: integer("assigned_officer_id").references(() => officers.id),
+
+  escalationLevel: text("escalation_level").default("L1").notNull(),
+
+  jurisdictionId: integer("jurisdiction_id").references(() => jurisdictions.id),
+  wardNumber: integer("ward_number"),
+  suburb: text("suburb"),
+  autoAssigned: boolean("auto_assigned").default(false).notNull(),
 
   photos: jsonb("photos").$type<string[]>().default([]),
+  resolutionPhotos: jsonb("resolution_photos").$type<string[]>().default([]),
+
+  expectedResponseAt: timestamp("expected_response_at"),
+  expectedResolutionAt: timestamp("expected_resolution_at"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -96,8 +253,100 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
     fields: [issues.assignedStaffId],
     references: [staff.id],
   }),
+  assignedOfficer: one(officers, {
+    fields: [issues.assignedOfficerId],
+    references: [officers.id],
+    relationName: "officer_issues",
+  }),
+  jurisdiction: one(jurisdictions, {
+    fields: [issues.jurisdictionId],
+    references: [jurisdictions.id],
+  }),
   comments: many(comments),
   timeline: many(timeline),
+  upvotes: many(upvotes),
+}));
+
+// Administrative Hierarchy (Keep old tables for backwards compatibility during migration)
+export const provinces = pgTable("provinces", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
+export const provincesRelations = relations(provinces, ({ many }) => ({
+  localAuthorities: many(localAuthorities),
+}));
+
+export const localAuthorities = pgTable("local_authorities", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  provinceId: integer("province_id").references(() => provinces.id),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
+export const localAuthoritiesRelations = relations(localAuthorities, ({ one, many }) => ({
+  province: one(provinces, {
+    fields: [localAuthorities.provinceId],
+    references: [provinces.id],
+  }),
+  wards: many(wards),
+  issues: many(issues),
+}));
+
+export const wards = pgTable("wards", {
+  id: serial("id").primaryKey(),
+  wardNumber: text("ward_number").notNull(),
+  name: text("name"),
+  localAuthorityId: integer("local_authority_id").references(() => localAuthorities.id).notNull(),
+  boundaryPolygon: jsonb("boundary_polygon").$type<any>(),
+  isActive: boolean("is_active").default(true).notNull(),
+  effectiveFrom: timestamp("effective_from").defaultNow(),
+  effectiveTo: timestamp("effective_to"),
+});
+
+export const wardsRelations = relations(wards, ({ one, many }) => ({
+  localAuthority: one(localAuthorities, {
+    fields: [wards.localAuthorityId],
+    references: [localAuthorities.id],
+  }),
+  suburbs: many(suburbs),
+  issues: many(issues),
+}));
+
+export const suburbs = pgTable("suburbs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  wardId: integer("ward_id").references(() => wards.id).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
+export const suburbsRelations = relations(suburbs, ({ one, many }) => ({
+  ward: one(wards, {
+    fields: [suburbs.wardId],
+    references: [wards.id],
+  }),
+  issues: many(issues),
+}));
+
+
+// Staff members
+export const staff = pgTable("staff", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull(),
+  departmentId: integer("department_id").references(() => departments.id).notNull(),
+  phone: text("phone"),
+  email: text("email"),
+  active: boolean("active").default(true).notNull(),
+});
+
+export const staffRelations = relations(staff, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [staff.departmentId],
+    references: [departments.id],
+  }),
+  assignedIssues: many(issues),
 }));
 
 // Comments on issues
@@ -169,6 +418,42 @@ export const creditsRelations = relations(credits, ({ one }) => ({
   }),
 }));
 
+// Upvotes on issues
+export const upvotes = pgTable("upvotes", {
+  id: serial("id").primaryKey(),
+  issueId: integer("issue_id").references(() => issues.id).notNull(),
+  userId: integer("user_id").notNull(), // Citizen ID (or generic user ID if unified)
+  userType: text("user_type").notNull().default('citizen'), // citizen, staff
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const upvotesRelations = relations(upvotes, ({ one }) => ({
+  issue: one(issues, {
+    fields: [upvotes.issueId],
+    references: [issues.id],
+  }),
+}));
+
+// User Notifications
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(), // Citizen ID
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull().default("info"), // info, success, warning, error
+  read: boolean("read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+  read: true
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
 // Admin users with role-based access control
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -209,6 +494,24 @@ export const insertRoleSchema = createInsertSchema(roles).omit({
 
 export type Role = typeof roles.$inferSelect;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
+
+// Jurisdiction & Categories
+export const insertJurisdictionSchema = createInsertSchema(jurisdictions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertIssueCategorySchema = createInsertSchema(issueCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertOfficerSchema = createInsertSchema(officers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 // Insert schemas
 export const insertCitizenSchema = createInsertSchema(citizens).omit({
@@ -276,6 +579,7 @@ export const ESCALATION_HIERARCHY = {
 } as const;
 
 export type UserRole = keyof typeof ROLE_HIERARCHY;
+
 // Permission definitions
 export const PERMISSIONS = {
   VIEW_DASHBOARD: "view_dashboard",
@@ -291,6 +595,100 @@ export const PERMISSIONS = {
   MANAGE_SETTINGS: "manage_settings",
   SEND_BROADCASTS: "send_broadcasts",
 } as const;
+
+// Permission metadata for UI display
+export const PERMISSION_INFO = {
+  view_dashboard: {
+    name: 'View Dashboard',
+    description: 'Access to admin dashboard and analytics overview',
+    category: 'dashboard'
+  },
+  manage_users: {
+    name: 'Manage System Users',
+    description: 'Create, edit, and manage system user accounts and roles',
+    category: 'user_management'
+  },
+  manage_staff: {
+    name: 'Manage Staff',
+    description: 'Add, edit, and remove departmental staff members',
+    category: 'user_management'
+  },
+  manage_citizens: {
+    name: 'Manage Citizens',
+    description: 'View and manage citizen accounts, suspend users',
+    category: 'user_management'
+  },
+  view_reports: {
+    name: 'View Reports',
+    description: 'View all submitted issues and reports',
+    category: 'reports'
+  },
+  edit_reports: {
+    name: 'Edit Reports',
+    description: 'Update issue details, status, and assignments',
+    category: 'reports'
+  },
+  delete_reports: {
+    name: 'Delete Reports',
+    description: 'Permanently remove issues from the system',
+    category: 'reports'
+  },
+  escalate_issues: {
+    name: 'Escalate Issues',
+    description: 'Escalate issues to higher authority levels',
+    category: 'reports'
+  },
+  resolve_issues: {
+    name: 'Resolve Issues',
+    description: 'Mark issues as resolved and verified',
+    category: 'reports'
+  },
+  view_analytics: {
+    name: 'View Analytics',
+    description: 'Access reports, charts, and system analytics',
+    category: 'analytics'
+  },
+  manage_settings: {
+    name: 'Manage Settings',
+    description: 'Configure system settings and global parameters',
+    category: 'system'
+  },
+  send_broadcasts: {
+    name: 'Send Broadcasts',
+    description: 'Create and send alerts to residents',
+    category: 'system'
+  },
+} as const;
+
+// Permission categories for organized display
+export const PERMISSION_CATEGORIES = {
+  dashboard: {
+    label: 'Dashboard',
+    description: 'Main dashboard access',
+    icon: 'LayoutDashboard'
+  },
+  user_management: {
+    label: 'User Management',
+    description: 'Manage users, staff, and citizens',
+    icon: 'Users'
+  },
+  reports: {
+    label: 'Reports & Issues',
+    description: 'View and manage reported issues',
+    icon: 'FileText'
+  },
+  analytics: {
+    label: 'Analytics',
+    description: 'View system analytics and statistics',
+    icon: 'BarChart'
+  },
+  system: {
+    label: 'System Administration',
+    description: 'System-wide settings and broadcasts',
+    icon: 'Settings'
+  },
+} as const;
+
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   super_admin: Object.values(PERMISSIONS),
@@ -339,8 +737,25 @@ export type InsertBroadcast = z.infer<typeof insertBroadcastSchema>;
 export type Credit = typeof credits.$inferSelect;
 export type InsertCredit = z.infer<typeof insertCreditSchema>;
 
+export type Upvote = typeof upvotes.$inferSelect;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+// Admin Hierarchy Types
+export type Province = typeof provinces.$inferSelect;
+export type LocalAuthority = typeof localAuthorities.$inferSelect;
+export type Ward = typeof wards.$inferSelect;
+export type Suburb = typeof suburbs.$inferSelect;
+
+export type Jurisdiction = typeof jurisdictions.$inferSelect;
+export type InsertJurisdiction = z.infer<typeof insertJurisdictionSchema>;
+
+export type IssueCategory = typeof issueCategories.$inferSelect;
+export type InsertIssueCategory = z.infer<typeof insertIssueCategorySchema>;
+
+export type Officer = typeof officers.$inferSelect;
+export type InsertOfficer = z.infer<typeof insertOfficerSchema>;
 
 // Credit point values
 export const CREDIT_VALUES = {

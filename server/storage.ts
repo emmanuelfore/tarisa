@@ -13,19 +13,37 @@ import {
   ESCALATION_HIERARCHY,
   type EscalationLevel,
   CREDIT_VALUES,
+  type Role,
+  type InsertRole,
+  roles,
+  provinces, localAuthorities, wards, suburbs,
+  type Province, type LocalAuthority, type Ward, type Suburb,
+  jurisdictions, type Jurisdiction, type InsertJurisdiction,
+  issueCategories, type IssueCategory, type InsertIssueCategory,
+  officers, type Officer, type InsertOfficer,
+  notifications, type Notification, type InsertNotification,
+  upvotes, type Upvote
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, sql, gte, lte, inArray, count } from "drizzle-orm";
+import { eq, and, or, desc, count, gte, lte, sql, getTableColumns, inArray, lt, ne } from "drizzle-orm";
 
 export interface IStorage {
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  listNotifications(userId: number): Promise<Notification[]>;
+  markNotificationAsRead(id: number): Promise<Notification>;
   // Citizens
   getCitizen(id: number): Promise<Citizen | undefined>;
   getCitizenByEmail(email: string): Promise<Citizen | undefined>;
   getOrCreateAnonymousCitizen(): Promise<Citizen>;
+  getCitizenByNid(nid: string): Promise<Citizen | undefined>;
   createCitizen(citizen: InsertCitizen): Promise<Citizen>;
   updateCitizen(id: number, data: Partial<InsertCitizen>): Promise<Citizen | undefined>;
   listCitizens(): Promise<Citizen[]>;
   verifyCitizenEmail(id: number): Promise<Citizen | undefined>;
+  setResetToken(email: string, token: string, expiry: Date): Promise<void>;
+  updatePassword(email: string, hash: string): Promise<void>;
+  savePushToken(userId: number, token: string): Promise<void>;
 
   // Departments
   getDepartment(id: number): Promise<Department | undefined>;
@@ -38,6 +56,7 @@ export interface IStorage {
   listStaff(): Promise<Staff[]>;
   listStaffByDepartment(departmentId: number): Promise<Staff[]>;
   updateStaff(id: number, data: Partial<InsertStaff>): Promise<Staff | undefined>;
+  deleteStaff(id: number): Promise<void>;
 
   // Issues
   getIssue(id: number): Promise<Issue | undefined>;
@@ -88,7 +107,45 @@ export interface IStorage {
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
 
   // Role-based issue access
-  listIssuesByEscalationLevel(escalationLevel: EscalationLevel, departmentId?: number): Promise<Issue[]>;
+  listIssuesByEscalationLevel(
+    escalationLevel: EscalationLevel,
+    departmentId?: number,
+    jurisdictionId?: number,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Issue[]>;
+
+  // Regions
+  listProvinces(): Promise<Province[]>;
+  listLocalAuthorities(provinceId?: number): Promise<LocalAuthority[]>;
+
+  // Upvotes
+  toggleUpvote(issueId: number, userId: number, userType: string): Promise<{ upvoted: boolean; count: number }>;
+  getUpvoteCount(issueId: number): Promise<number>;
+  hasUserUpvoted(issueId: number, userId: number): Promise<boolean>;
+
+  // User Stats
+  getUserStats(userId: number): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }>;
+  listWards(localAuthorityId?: number): Promise<Ward[]>;
+  listSuburbs(wardId?: number): Promise<Suburb[]>;
+
+  createLocalAuthority(data: { name: string, type: string, provinceId: number }): Promise<LocalAuthority>;
+  updateLocalAuthority(id: number, data: Partial<LocalAuthority>): Promise<LocalAuthority | undefined>;
+
+  createWard(data: { name: string, wardNumber: string, localAuthorityId: number, boundaryPolygon?: any }): Promise<Ward>;
+  updateWard(id: number, data: Partial<Ward>): Promise<Ward | undefined>;
+  deleteWard(id: number): Promise<void>; // Soft delete only if no issues
+
+  createSuburb(data: { name: string, wardId: number }): Promise<Suburb>;
+  updateSuburb(id: number, data: Partial<Suburb>): Promise<Suburb | undefined>;
+  deleteSuburb(id: number): Promise<void>;
+
+  // Roles
+  getRoles(): Promise<Role[]>;
+  getRoleBySlug(slug: string): Promise<Role | undefined>;
+  createRole(role: InsertRole): Promise<Role>;
+  updateRole(slug: string, data: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number): Promise<void>;
 
   // Analytics
   getAnalytics(): Promise<{
@@ -97,7 +154,30 @@ export interface IStorage {
     pendingIssues: number;
     categoryCounts: Record<string, number>;
     priorityCounts: Record<string, number>;
+    statusCounts: Record<string, number>;
+    slaComplianceRate: number;
+    overdueIssues: number;
   }>;
+
+  getIssuesForMap(): Promise<any[]>;
+
+  // New Unified Hierarchy
+  listJurisdictions(level?: string): Promise<Jurisdiction[]>;
+  getJurisdiction(id: number): Promise<Jurisdiction | undefined>;
+  getJurisdictionByCode(code: string): Promise<Jurisdiction | undefined>;
+  createJurisdiction(jurisdiction: InsertJurisdiction): Promise<Jurisdiction>;
+
+  // Issue Categories
+  listIssueCategories(): Promise<IssueCategory[]>;
+  getIssueCategory(code: string): Promise<IssueCategory | undefined>;
+  createIssueCategory(category: InsertIssueCategory): Promise<IssueCategory>;
+  updateIssueCategoryByCode(code: string, data: Partial<InsertIssueCategory>): Promise<IssueCategory | undefined>;
+  // Officers
+  listOfficers(): Promise<Officer[]>;
+  getOfficer(id: number): Promise<Officer | undefined>;
+  getOfficerByUserId(userId: number): Promise<Officer | undefined>;
+  createOfficer(officer: InsertOfficer): Promise<Officer>;
+  updateOfficer(id: number, data: Partial<InsertOfficer>): Promise<Officer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -129,6 +209,11 @@ export class DatabaseStorage implements IStorage {
     return citizen;
   }
 
+  async getCitizenByNid(nid: string): Promise<Citizen | undefined> {
+    const [citizen] = await db.select().from(citizens).where(eq(citizens.nid, nid));
+    return citizen || undefined;
+  }
+
   async createCitizen(insertCitizen: InsertCitizen): Promise<Citizen> {
     const [citizen] = await db.insert(citizens).values(insertCitizen).returning();
     return citizen;
@@ -143,6 +228,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(citizens).orderBy(desc(citizens.createdAt));
   }
 
+
   async verifyCitizenEmail(id: number): Promise<Citizen | undefined> {
     const [citizen] = await db
       .update(citizens)
@@ -150,6 +236,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(citizens.id, id))
       .returning();
     return citizen || undefined;
+  }
+
+  async setResetToken(email: string, token: string, expiry: Date): Promise<void> {
+    await db
+      .update(citizens)
+      .set({ resetToken: token, resetTokenExpiry: expiry })
+      .where(eq(citizens.email, email));
+  }
+
+  async updatePassword(email: string, hash: string): Promise<void> {
+    await db
+      .update(citizens)
+      .set({ password: hash, resetToken: null, resetTokenExpiry: null })
+      .where(eq(citizens.email, email));
+  }
+
+  async savePushToken(userId: number, token: string): Promise<void> {
+    await db
+      .update(citizens)
+      .set({ pushToken: token })
+      .where(eq(citizens.id, userId));
   }
 
   // Departments
@@ -191,10 +298,24 @@ export class DatabaseStorage implements IStorage {
     return staffMember || undefined;
   }
 
+  async deleteStaff(id: number): Promise<void> {
+    await db.delete(staff).where(eq(staff.id, id));
+  }
+
   // Issues
-  async getIssue(id: number): Promise<Issue | undefined> {
-    const [issue] = await db.select().from(issues).where(eq(issues.id, id));
-    return issue || undefined;
+  async getIssue(id: number): Promise<any | undefined> {
+    const [result] = await db
+      .select({
+        ...getTableColumns(issues),
+        jurisdictionName: jurisdictions.name,
+        departmentName: departments.name
+      })
+      .from(issues)
+      .leftJoin(jurisdictions, eq(issues.jurisdictionId, jurisdictions.id))
+      .leftJoin(departments, eq(issues.assignedDepartmentId, departments.id))
+      .where(eq(issues.id, id));
+
+    return result || undefined;
   }
 
   async getIssueByTrackingId(trackingId: string): Promise<Issue | undefined> {
@@ -205,26 +326,30 @@ export class DatabaseStorage implements IStorage {
   async createIssue(insertIssue: InsertIssue): Promise<Issue> {
     const year = new Date().getFullYear();
     const [issueCount] = await db.select({ count: count() }).from(issues);
-    const trackingId = `TAR - ${year} -${String(Number(issueCount.count) + 1).padStart(4, '0')} `;
+    const trackingId = `TAR-${year}-${String(Number(issueCount.count) + 1).padStart(4, '0')}`;
 
     const photosArray: string[] = Array.isArray(insertIssue.photos) ? [...insertIssue.photos] : [];
 
-    // Auto-assign department based on category (lookup by name pattern)
+    // Auto-assign department based on category (lookup by handles_categories)
     let autoAssignedDepartmentId = insertIssue.assignedDepartmentId ?? null;
+    let expectedResponseAt: Date | null = null;
+    let expectedResolutionAt: Date | null = null;
 
     if (!autoAssignedDepartmentId) {
-      const categoryToNamePattern: Record<string, string> = {
-        'water': 'Water',
-        'roads': 'Roads',
-        'sewer': 'Sewer',
-        'lights': 'Lights',
-        'waste': 'Waste',
-      };
-      const pattern = categoryToNamePattern[insertIssue.category.toLowerCase()];
-      if (pattern) {
-        const allDepts = await this.listDepartments();
-        const matchingDept = allDepts.find(d => d.name.toLowerCase().includes(pattern.toLowerCase()));
-        autoAssignedDepartmentId = matchingDept?.id ?? null;
+      const allDepts = await this.listDepartments();
+      const matchingDept = allDepts.find(d =>
+        (d.handlesCategories as string[] || []).includes(insertIssue.category) ||
+        d.name.toLowerCase().includes(insertIssue.category.toLowerCase())
+      );
+      autoAssignedDepartmentId = matchingDept?.id ?? null;
+    }
+
+    if (autoAssignedDepartmentId) {
+      const dept = await this.getDepartment(autoAssignedDepartmentId);
+      if (dept) {
+        const now = new Date();
+        expectedResponseAt = new Date(now.getTime() + (dept.responseTimeSlaHours || 48) * 60 * 60 * 1000);
+        expectedResolutionAt = new Date(now.getTime() + (dept.resolutionTimeSlaHours || 168) * 60 * 60 * 1000);
       }
     }
 
@@ -242,7 +367,14 @@ export class DatabaseStorage implements IStorage {
       escalationLevel: insertIssue.escalationLevel ?? 'L1',
       assignedDepartmentId: autoAssignedDepartmentId,
       assignedStaffId: insertIssue.assignedStaffId ?? null,
+      assignedOfficerId: insertIssue.assignedOfficerId ?? null,
+      jurisdictionId: insertIssue.jurisdictionId ?? null,
+      wardNumber: insertIssue.wardNumber ?? null,
+      suburb: insertIssue.suburb ?? null,
+      autoAssigned: insertIssue.autoAssigned ?? !!autoAssignedDepartmentId,
       photos: photosArray,
+      expectedResponseAt,
+      expectedResolutionAt,
     }).returning();
 
     await this.createTimeline({
@@ -302,13 +434,46 @@ export class DatabaseStorage implements IStorage {
     if (data.escalationLevel !== undefined) updateData.escalationLevel = data.escalationLevel;
     if (data.assignedDepartmentId !== undefined) updateData.assignedDepartmentId = data.assignedDepartmentId;
     if (data.assignedStaffId !== undefined) updateData.assignedStaffId = data.assignedStaffId;
+    if (data.assignedOfficerId !== undefined) updateData.assignedOfficerId = data.assignedOfficerId;
+    if (data.jurisdictionId !== undefined) updateData.jurisdictionId = data.jurisdictionId;
+    if (data.wardNumber !== undefined) updateData.wardNumber = data.wardNumber;
+    if (data.suburb !== undefined) updateData.suburb = data.suburb;
     if (data.photos !== undefined) updateData.photos = data.photos;
+    if (data.resolutionPhotos !== undefined) updateData.resolutionPhotos = data.resolutionPhotos;
+    if (data.status === 'resolved') updateData.resolvedAt = new Date();
+
+    // Get original issue to check for status changes
+    const originalIssue = await this.getIssue(id);
 
     const [issue] = await db
       .update(issues)
       .set(updateData)
       .where(eq(issues.id, id))
       .returning();
+
+    if (issue && originalIssue && issue.status !== originalIssue.status) {
+      await this.createTimeline({
+        issueId: issue.id,
+        type: 'status',
+        title: `Status Updated to ${issue.status.toUpperCase()}`,
+        description: `Issue status changed from ${originalIssue.status} to ${issue.status}`,
+        user: 'System',
+      });
+
+      // Award credits when issue is resolved
+      if (issue.status === 'resolved' && originalIssue.status !== 'resolved') {
+        const citizen = await this.getCitizen(issue.citizenId);
+        if (citizen && citizen.email !== "anonymous@tarisa.gov.zw") {
+          await this.awardCredits(
+            citizen.id,
+            CREDIT_VALUES.report_resolved,
+            'report_resolved',
+            issue.id
+          );
+        }
+      }
+    }
+
     return issue || undefined;
   }
 
@@ -317,24 +482,33 @@ export class DatabaseStorage implements IStorage {
     category?: string;
     citizenId?: number;
     departmentId?: number;
+    jurisdictionId?: number;
     startDate?: Date;
     endDate?: Date;
-  }): Promise<Issue[]> {
-    let query = db.select().from(issues);
-
+  }): Promise<any[]> {
     const conditions = [];
     if (filters?.status) conditions.push(eq(issues.status, filters.status));
     if (filters?.category) conditions.push(eq(issues.category, filters.category));
     if (filters?.citizenId) conditions.push(eq(issues.citizenId, filters.citizenId));
     if (filters?.departmentId) conditions.push(eq(issues.assignedDepartmentId, filters.departmentId));
+    if (filters?.jurisdictionId) conditions.push(eq(issues.jurisdictionId, filters.jurisdictionId));
     if (filters?.startDate) conditions.push(gte(issues.createdAt, filters.startDate));
     if (filters?.endDate) conditions.push(lte(issues.createdAt, filters.endDate));
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions)) as any;
-    }
+    const result = await db
+      .select({
+        ...getTableColumns(issues),
+        upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
+        comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
+      })
+      .from(issues)
+      .leftJoin(upvotes, eq(issues.id, upvotes.issueId))
+      .leftJoin(comments, eq(issues.id, comments.issueId))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(issues.id)
+      .orderBy(desc(issues.createdAt));
 
-    return await query.orderBy(desc(issues.createdAt));
+    return result as any;
   }
 
   async assignIssue(
@@ -343,6 +517,12 @@ export class DatabaseStorage implements IStorage {
     staffId: number | null,
     escalationLevel: string
   ): Promise<Issue | undefined> {
+    // Lock assignment for resolved issues
+    const currentIssue = await this.getIssue(issueId);
+    if (currentIssue?.status === 'resolved') {
+      throw new Error("Cannot reassign a resolved issue.");
+    }
+
     const [issue] = await db
       .update(issues)
       .set({
@@ -368,6 +548,8 @@ export class DatabaseStorage implements IStorage {
 
     return issue || undefined;
   }
+
+
 
   // Comments
   async createComment(insertComment: InsertComment): Promise<Comment> {
@@ -396,7 +578,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listTimelineByIssue(issueId: number): Promise<Timeline[]> {
-    return await db.select().from(timeline).where(eq(timeline.issueId, issueId)).orderBy(timeline.createdAt);
+    return await db.select().from(timeline).where(eq(timeline.issueId, issueId)).orderBy(desc(timeline.createdAt));
   }
 
   // Broadcasts
@@ -493,7 +675,13 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async listIssuesByEscalationLevel(escalationLevel: EscalationLevel, departmentId?: number): Promise<Issue[]> {
+  async listIssuesByEscalationLevel(
+    escalationLevel: EscalationLevel,
+    departmentId?: number,
+    jurisdictionId?: number,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<Issue[]> {
     const userLevel = ESCALATION_HIERARCHY[escalationLevel];
     const allowedLevels = Object.entries(ESCALATION_HIERARCHY)
       .filter(([_, level]) => level <= userLevel)
@@ -503,11 +691,27 @@ export class DatabaseStorage implements IStorage {
     if (departmentId) {
       conditions.push(eq(issues.assignedDepartmentId, departmentId));
     }
+    if (jurisdictionId) {
+      conditions.push(eq(issues.jurisdictionId, jurisdictionId));
+    }
+    if (startDate) {
+      conditions.push(gte(issues.createdAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(issues.createdAt, endDate));
+    }
 
     return await db
-      .select()
+      .select({
+        ...getTableColumns(issues),
+        upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
+        comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
+      })
       .from(issues)
+      .leftJoin(upvotes, eq(issues.id, upvotes.issueId))
+      .leftJoin(comments, eq(issues.id, comments.issueId))
       .where(and(...conditions))
+      .groupBy(issues.id)
       .orderBy(desc(issues.createdAt));
   }
 
@@ -518,6 +722,7 @@ export class DatabaseStorage implements IStorage {
     pendingIssues: number;
     categoryCounts: Record<string, number>;
     priorityCounts: Record<string, number>;
+    statusCounts: Record<string, number>;
   }> {
     const [totalResult] = await db.select({ count: sql<number>`count(*)` }).from(issues);
     const [resolvedResult] = await db
@@ -529,6 +734,22 @@ export class DatabaseStorage implements IStorage {
       .from(issues)
       .where(or(eq(issues.status, 'submitted'), eq(issues.status, 'verified'), eq(issues.status, 'in_progress')));
 
+    const [overdueResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(issues)
+      .where(and(
+        or(eq(issues.status, 'submitted'), eq(issues.status, 'verified'), eq(issues.status, 'in_progress')),
+        lt(issues.expectedResolutionAt, new Date())
+      ));
+
+    const [compliantResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(issues)
+      .where(and(
+        eq(issues.status, 'resolved'),
+        sql`${issues.resolvedAt} <= ${issues.expectedResolutionAt}`
+      ));
+
     const categoryResults = await db
       .select({ category: issues.category, count: sql<number>`count(*)` })
       .from(issues)
@@ -538,6 +759,11 @@ export class DatabaseStorage implements IStorage {
       .select({ priority: issues.priority, count: sql<number>`count(*)` })
       .from(issues)
       .groupBy(issues.priority);
+
+    const statusResults = await db
+      .select({ status: issues.status, count: sql<number>`count(*)` })
+      .from(issues)
+      .groupBy(issues.status);
 
     const categoryCounts: Record<string, number> = {};
     categoryResults.forEach(r => {
@@ -549,14 +775,339 @@ export class DatabaseStorage implements IStorage {
       priorityCounts[r.priority] = Number(r.count);
     });
 
+    const statusCounts: Record<string, number> = {};
+    statusResults.forEach(r => {
+      statusCounts[r.status] = Number(r.count);
+    });
+
+    const slaComplianceRate = resolvedResult.count > 0
+      ? (Number(compliantResult.count) / Number(resolvedResult.count)) * 100
+      : 100;
+
     return {
       totalIssues: Number(totalResult.count),
       resolvedIssues: Number(resolvedResult.count),
       pendingIssues: Number(pendingResult.count),
       categoryCounts,
       priorityCounts,
+      statusCounts,
+      slaComplianceRate,
+      overdueIssues: Number(overdueResult.count),
     };
   }
+
+  // Regions
+  async listProvinces(): Promise<Province[]> {
+    return await db.select().from(provinces);
+  }
+
+  async listLocalAuthorities(provinceId?: number): Promise<LocalAuthority[]> {
+    if (provinceId) {
+      return await db.select().from(localAuthorities).where(eq(localAuthorities.provinceId, provinceId));
+    }
+    return await db.select().from(localAuthorities);
+  }
+
+  async listWards(localAuthorityId?: number): Promise<Ward[]> {
+    if (localAuthorityId) {
+      return await db.select().from(wards).where(eq(wards.localAuthorityId, localAuthorityId));
+    }
+    return await db.select().from(wards);
+  }
+
+  async listSuburbs(wardId?: number): Promise<Suburb[]> {
+    if (wardId) {
+      return await db.select().from(suburbs).where(and(eq(suburbs.wardId, wardId), eq(suburbs.isActive, true)));
+    }
+    return await db.select().from(suburbs).where(eq(suburbs.isActive, true));
+  }
+
+  async createLocalAuthority(data: { name: string, type: string, provinceId: number }): Promise<LocalAuthority> {
+    const [la] = await db.insert(localAuthorities).values(data).returning();
+    return la;
+  }
+
+  async updateLocalAuthority(id: number, data: Partial<LocalAuthority>): Promise<LocalAuthority | undefined> {
+    const [la] = await db.update(localAuthorities).set(data).where(eq(localAuthorities.id, id)).returning();
+    return la;
+  }
+
+  async createWard(data: { name: string, wardNumber: string, localAuthorityId: number, boundaryPolygon?: any }): Promise<Ward> {
+    const [ward] = await db.insert(wards).values(data).returning();
+    return ward;
+  }
+
+  async updateWard(id: number, data: Partial<Ward>): Promise<Ward | undefined> {
+    const [ward] = await db.update(wards).set(data).where(eq(wards.id, id)).returning();
+    return ward;
+  }
+
+  async deleteWard(id: number): Promise<void> {
+    // Check for issues in this ward
+    const issueCount = await db.select({ count: count() }).from(issues).where(eq(issues.wardId, id));
+    if (issueCount[0].count > 0) {
+      throw new Error("Cannot delete ward with existing issues. Deactivate it instead.");
+    }
+    // Soft delete
+    await db.update(wards).set({ isActive: false, effectiveTo: new Date() }).where(eq(wards.id, id));
+  }
+
+  async createSuburb(data: { name: string, wardId: number }): Promise<Suburb> {
+    const [sub] = await db.insert(suburbs).values(data).returning();
+    return sub;
+  }
+
+  async updateSuburb(id: number, data: Partial<Suburb>): Promise<Suburb | undefined> {
+    const [sub] = await db.update(suburbs).set(data).where(eq(suburbs.id, id)).returning();
+    return sub;
+  }
+
+  async deleteSuburb(id: number): Promise<void> {
+    await db.delete(suburbs).where(eq(suburbs.id, id));
+  }
+
+  // Unified Jurisdictions
+  async listJurisdictions(level?: string): Promise<Jurisdiction[]> {
+    if (level) {
+      return await db.select().from(jurisdictions).where(eq(jurisdictions.level, level));
+    }
+    return await db.select().from(jurisdictions);
+  }
+
+  async getJurisdiction(id: number): Promise<Jurisdiction | undefined> {
+    const [result] = await db.select().from(jurisdictions).where(eq(jurisdictions.id, id));
+    return result || undefined;
+  }
+
+  async getJurisdictionByCode(code: string): Promise<Jurisdiction | undefined> {
+    const [result] = await db.select().from(jurisdictions).where(eq(jurisdictions.code, code));
+    return result || undefined;
+  }
+
+  async createJurisdiction(data: InsertJurisdiction): Promise<Jurisdiction> {
+    const [result] = await db.insert(jurisdictions).values(data).returning();
+    return result;
+  }
+
+  // Issue Categories
+  async listIssueCategories(): Promise<IssueCategory[]> {
+    return await db.select().from(issueCategories).where(eq(issueCategories.isActive, true));
+  }
+
+  async getIssueCategory(code: string): Promise<IssueCategory | undefined> {
+    const [result] = await db.select().from(issueCategories).where(eq(issueCategories.code, code));
+    return result || undefined;
+  }
+
+  async createIssueCategory(data: InsertIssueCategory): Promise<IssueCategory> {
+    const [result] = await db.insert(issueCategories).values(data).returning();
+    return result;
+  }
+
+  // Officers
+  async listOfficers(): Promise<Officer[]> {
+    return await db.select().from(officers).where(eq(officers.isActive, true));
+  }
+
+  async getOfficer(id: number): Promise<Officer | undefined> {
+    const [result] = await db.select().from(officers).where(eq(officers.id, id));
+    return result || undefined;
+  }
+
+  async getOfficerByUserId(userId: number): Promise<Officer | undefined> {
+    const [result] = await db.select().from(officers).where(eq(officers.userId, userId));
+    return result || undefined;
+  }
+
+  async createOfficer(data: InsertOfficer): Promise<Officer> {
+    const [result] = await db.insert(officers).values(data).returning();
+    return result;
+  }
+
+  async updateOfficer(id: number, data: Partial<InsertOfficer>): Promise<Officer | undefined> {
+    const [result] = await db.update(officers).set({ ...data, updatedAt: new Date() }).where(eq(officers.id, id)).returning();
+    return result || undefined;
+  }
+
+
+  // Roles
+  async getRoles(): Promise<Role[]> {
+    return await db.select().from(roles);
+  }
+
+  async getRoleBySlug(slug: string): Promise<Role | undefined> {
+    const [role] = await db.select().from(roles).where(eq(roles.slug, slug));
+    return role;
+  }
+
+  async createRole(role: InsertRole): Promise<Role> {
+    const values = {
+      ...role,
+      permissions: role.permissions as string[]
+    };
+    const [newRole] = await db.insert(roles).values(values).returning();
+    return newRole;
+  }
+
+  async updateRole(slug: string, data: Partial<InsertRole>): Promise<Role | undefined> {
+    const values = {
+      ...data,
+      permissions: data.permissions ? (data.permissions as string[]) : undefined
+    };
+    const [updatedRole] = await db
+      .update(roles)
+      .set(values)
+      .where(eq(roles.slug, slug))
+      .returning();
+    return updatedRole;
+  }
+
+  async deleteRole(id: number): Promise<void> {
+    await db.delete(roles).where(and(eq(roles.id, id), eq(roles.isSystem, false)));
+  }
+
+  async toggleUpvote(issueId: number, userId: number, userType: string): Promise<{ upvoted: boolean; count: number }> {
+    const existing = await db
+      .select()
+      .from(upvotes)
+      .where(and(eq(upvotes.issueId, issueId), eq(upvotes.userId, userId)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      await db.delete(upvotes).where(eq(upvotes.id, existing[0].id));
+      const count = await this.getUpvoteCount(issueId);
+      return { upvoted: false, count };
+    } else {
+      await db.insert(upvotes).values({ issueId, userId, userType });
+      const count = await this.getUpvoteCount(issueId);
+      return { upvoted: true, count };
+    }
+  }
+
+  async getUpvoteCount(issueId: number): Promise<number> {
+    const result = await db.select({ count: count() }).from(upvotes).where(eq(upvotes.issueId, issueId));
+    return result[0]?.count || 0;
+  }
+
+  async hasUserUpvoted(issueId: number, userId: number): Promise<boolean> {
+    const result = await db.select({ count: count() }).from(upvotes).where(and(eq(upvotes.issueId, issueId), eq(upvotes.userId, userId)));
+    return result[0]?.count > 0;
+  }
+
+  async getUserStats(userId: number): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }> {
+    // Bridge: User -> Citizen (via Email)
+    const user = await this.getUser(userId);
+    if (!user || !user.email) return { totalReports: 0, totalCredits: 0, resolvedReports: 0 };
+
+    let citizen = await this.getCitizenByEmail(user.email);
+    if (!citizen) {
+      // Auto-create citizen profile so stats (and future reports) work immediately
+      citizen = await this.createCitizen({
+        name: user.name,
+        email: user.email,
+        phone: "Verified User",
+        address: "Verified User",
+        ward: "Unknown",
+        emailVerified: true,
+        status: 'verified'
+      });
+    }
+
+    const citizenId = citizen.id;
+
+    const [reports] = await db.select({ count: count() }).from(issues).where(eq(issues.citizenId, citizenId));
+    const [resolved] = await db
+      .select({ count: count() })
+      .from(issues)
+      .where(and(eq(issues.citizenId, citizenId), eq(issues.status, "resolved")));
+    const totalCredits = await this.getCitizenCredits(citizenId);
+
+    return {
+      totalReports: reports?.count || 0,
+      resolvedReports: resolved?.count || 0,
+      totalCredits
+    };
+  }
+
+  async getIssuesForMap(): Promise<any[]> {
+    const result = await db
+      .select({
+        id: issues.id,
+        title: issues.title,
+        status: issues.status,
+        category: issues.category,
+        coordinates: issues.coordinates,
+        location: issues.location,
+        createdAt: issues.createdAt,
+        jurisdictionName: jurisdictions.name,
+        upvoteCount: count(upvotes.id)
+      })
+      .from(issues)
+      .leftJoin(jurisdictions, eq(issues.jurisdictionId, jurisdictions.id))
+      .leftJoin(upvotes, eq(issues.id, upvotes.issueId))
+      .groupBy(issues.id, jurisdictions.name)
+      .orderBy(desc(issues.createdAt)); // Show newest first
+
+    return result;
+  }
+
+  async getNearbyIssues(lat: number, lng: number, radiusKm: number = 0.05): Promise<any[]> {
+    // Haversine formula for precise distance
+    const toRad = (value: number) => (value * Math.PI) / 180;
+    const R = 6371; // km
+
+    const result = await db.select({
+      id: issues.id,
+      title: issues.title,
+      category: issues.category,
+      coordinates: issues.coordinates,
+      status: issues.status,
+      createdAt: issues.createdAt
+    })
+      .from(issues)
+      .where(ne(issues.status, 'resolved'));
+
+    return result.filter(issue => {
+      if (!issue.coordinates) return false;
+      const [iLat, iLng] = issue.coordinates.split(',').map(Number);
+
+      const dLat = toRad(iLat - lat);
+      const dLng = toRad(iLng - lng);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat)) * Math.cos(toRad(iLat)) *
+        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const d = R * c;
+
+      return d <= radiusKm;
+    });
+  }
+
+  // Notifications
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db.insert(notifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async listNotifications(userId: number): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification> {
+    const [notification] = await db
+      .update(notifications)
+      .set({ read: true })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification;
+  }
+
 }
+
 
 export const storage = new DatabaseStorage();

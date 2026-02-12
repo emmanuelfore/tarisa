@@ -3,6 +3,7 @@ import "dotenv/config";
 import { db, pool } from "../server/db";
 import {
     users, departments, staff, citizens, issues, credits, broadcasts,
+    issueCategories, jurisdictions, provinces, localAuthorities, wards,
     ROLE_HIERARCHY, ESCALATION_HIERARCHY
 } from "@shared/schema";
 import { hash } from "bcrypt";
@@ -14,22 +15,53 @@ async function seed() {
     try {
         // Clear existing data
         console.log("Cleaning formatted tables...");
-        await db.execute(sql`TRUNCATE TABLE ${users}, ${staff}, ${issues}, ${credits}, ${broadcasts}, ${citizens}, ${departments} RESTART IDENTITY CASCADE`);
+        await db.execute(sql`TRUNCATE TABLE 
+            ${users}, ${staff}, ${issues}, ${credits}, ${broadcasts}, 
+            ${citizens}, ${departments}, ${issueCategories}, ${jurisdictions},
+            ${provinces}, ${localAuthorities}, ${wards} 
+            RESTART IDENTITY CASCADE`);
 
-        // 1. Create Departments
+        // 1. Create Jurisdiction Hierarchy
+        console.log("Creating jurisdictions...");
+        const [harare] = await db.insert(jurisdictions).values({
+            code: "ZW-HA",
+            name: "Harare",
+            level: "district",
+            serviceProvider: "Harare City Council"
+        }).returning();
+
+        const [ward17] = await db.insert(jurisdictions).values({
+            code: "ZW-HA-W17",
+            name: "Ward 17",
+            level: "ward",
+            parentId: harare.id,
+            serviceProvider: "Harare City Council"
+        }).returning();
+
+        // 2. Create Departments
         console.log("Creating departments...");
         const depts = await db.insert(departments).values([
-            { name: "Roads & Transport", type: "Municipal", contactEmail: "roads@city.gov.zw" },
-            { name: "Water & Sanitation", type: "Municipal", contactEmail: "water@city.gov.zw" },
-            { name: "Electricity (ZESA)", type: "Parastatal", contactEmail: "faults@zesa.co.zw" },
-            { name: "Waste Management", type: "Municipal", contactEmail: "waste@city.gov.zw" },
-            { name: "Public Safety", type: "Police", contactEmail: "police@city.gov.zw" },
+            { name: "Roads & Transport", type: "Municipal", contactEmail: "roads@city.gov.zw", jurisdictionId: harare.id },
+            { name: "Water & Sanitation", type: "Municipal", contactEmail: "water@city.gov.zw", jurisdictionId: harare.id },
+            { name: "Electricity (ZESA)", type: "Parastatal", contactEmail: "faults@zesa.co.zw", jurisdictionId: harare.id },
+            { name: "Waste Management", type: "Municipal", contactEmail: "waste@city.gov.zw", jurisdictionId: harare.id },
+            { name: "Public Safety", type: "Police", contactEmail: "police@city.gov.zw", jurisdictionId: harare.id },
         ]).returning();
 
         const roadsDept = depts.find(d => d.name === "Roads & Transport")!;
         const waterDept = depts.find(d => d.name === "Water & Sanitation")!;
 
-        // 2. Create Staff
+        // 3. Create Issue Categories
+        console.log("Creating issue categories...");
+        await db.insert(issueCategories).values([
+            { code: "pothole", name: "Pothole", parentCategory: "Roads & Transport", icon: "drill", responseTimeHours: 48, resolutionTimeHours: 168 },
+            { code: "street_light", name: "Broken Street Light", parentCategory: "Electricity (ZESA)", icon: "lightbulb", responseTimeHours: 24, resolutionTimeHours: 72 },
+            { code: "water_leak", name: "Water Leak / Burst Pipe", parentCategory: "Water & Sanitation", icon: "droplets", responseTimeHours: 12, resolutionTimeHours: 48 },
+            { code: "refuse_collection", name: "Uncollected Refuse", parentCategory: "Waste Management", icon: "trash2", responseTimeHours: 24, resolutionTimeHours: 48 },
+            { code: "traffic_lights", name: "Faulty Traffic Lights", parentCategory: "Roads & Transport", icon: "traffic-light", responseTimeHours: 8, resolutionTimeHours: 24 },
+        ]);
+
+        // 4. Create Staff
         console.log("Creating staff...");
         await db.insert(staff).values([
             { name: "John Moyo", role: "Manager", departmentId: roadsDept.id, email: "j.moyo@city.gov.zw" },
@@ -37,7 +69,7 @@ async function seed() {
             { name: "Blessing Ncube", role: "Manager", departmentId: waterDept.id, email: "b.ncube@city.gov.zw" },
         ]);
 
-        // 3. Create Admin User
+        // 5. Create Admin User
         console.log("Creating admin user...");
         const hashedPassword = await hash("password123", 10);
         await db.insert(users).values([
@@ -61,7 +93,7 @@ async function seed() {
             }
         ]);
 
-        // 4. Create Citizens
+        // 6. Create Citizens
         console.log("Creating citizens...");
         const newCitizens = await db.insert(citizens).values([
             {
@@ -69,7 +101,7 @@ async function seed() {
                 email: "tendai@example.com",
                 phone: "+263772123456",
                 address: "123 Samora Machel Ave",
-                ward: "Ward 5",
+                ward: "Ward 17",
                 status: "verified"
             },
             {
@@ -82,14 +114,14 @@ async function seed() {
             }
         ]).returning();
 
-        // 5. Create Issues
+        // 7. Create Issues
         console.log("Creating issues...");
         await db.insert(issues).values([
             {
                 trackingId: "TAR-2025-001",
                 title: "Large Pothole on Samora Machel",
                 description: "There is a dangerous pothole near the intersection causing traffic delays.",
-                category: "Roads",
+                category: "pothole",
                 location: "Samora Machel Ave & 4th St",
                 status: "in_progress",
                 priority: "high",
@@ -97,13 +129,14 @@ async function seed() {
                 citizenId: newCitizens[0].id,
                 assignedDepartmentId: roadsDept.id,
                 escalationLevel: "L2",
+                jurisdictionId: ward17.id,
                 updatedAt: new Date(),
             },
             {
                 trackingId: "TAR-2025-002",
                 title: "Burst Water Pipe",
                 description: "Clean water wasting away from a burst pipe on the verge.",
-                category: "Water",
+                category: "water_leak",
                 location: "12 Nelson Mandela Ave",
                 status: "submitted",
                 priority: "critical",
@@ -111,12 +144,13 @@ async function seed() {
                 citizenId: newCitizens[1].id,
                 assignedDepartmentId: waterDept.id,
                 escalationLevel: "L1",
+                jurisdictionId: harare.id,
             },
             {
                 trackingId: "TAR-2025-003",
                 title: "Broken Street Light",
                 description: "Street light not working for 2 weeks, unsafe area at night.",
-                category: "Electricity",
+                category: "street_light",
                 location: "Borrowdale Rd",
                 status: "resolved",
                 priority: "medium",
@@ -124,6 +158,7 @@ async function seed() {
                 citizenId: newCitizens[0].id,
                 assignedDepartmentId: depts.find(d => d.name === "Electricity (ZESA)")!.id,
                 escalationLevel: "L1",
+                jurisdictionId: harare.id,
                 resolvedAt: new Date(),
             }
         ]);
