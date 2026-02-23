@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -29,17 +29,21 @@ import {
   MoreHorizontal,
   UserPlus,
   Loader2,
+  Eye,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import mapBg from "@assets/generated_images/map_background_texture.png";
 import { useToast } from "@/hooks/use-toast";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -57,12 +61,7 @@ import {
 } from "@/components/ui/select";
 import type { Issue, Department } from "@shared/schema";
 
-const ESCALATION_LEVELS = [
-  { id: "L1", name: "Level 1: Ward Team", color: "bg-blue-100 text-blue-700" },
-  { id: "L2", name: "Level 2: District Office", color: "bg-purple-100 text-purple-700" },
-  { id: "L3", name: "Level 3: Town House HQ", color: "bg-orange-100 text-orange-700" },
-  { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
-];
+
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -70,7 +69,7 @@ export default function AdminDashboard() {
   const [selectedReport, setSelectedReport] = useState<Issue | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("");
+  // const [selectedLevel, setSelectedLevel] = useState(""); // Removed
 
   // Fetch analytics data
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
@@ -104,12 +103,12 @@ export default function AdminDashboard() {
 
   // Assign mutation
   const assignMutation = useMutation({
-    mutationFn: async ({ issueId, departmentId, escalationLevel }: { issueId: number; departmentId: number; escalationLevel: string }) => {
+    mutationFn: async ({ issueId, departmentId }: { issueId: number; departmentId: number }) => {
       const res = await fetch(`/api/issues/${issueId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ departmentId, escalationLevel }),
+        body: JSON.stringify({ departmentId }),
       });
       if (!res.ok) throw new Error("Failed to assign issue");
       return res.json();
@@ -141,7 +140,7 @@ export default function AdminDashboard() {
   const handleAssignClick = (report: Issue) => {
     setSelectedReport(report);
     setSelectedDept(report.assignedDepartmentId?.toString() || "");
-    setSelectedLevel(report.escalationLevel);
+    // setSelectedLevel(report.escalationLevel); // Removed
     setAssignDialogOpen(true);
   };
 
@@ -150,31 +149,11 @@ export default function AdminDashboard() {
     assignMutation.mutate({
       issueId: selectedReport.id,
       departmentId: parseInt(selectedDept),
-      escalationLevel: selectedLevel,
+      // escalationLevel: selectedLevel, // Removed
     });
   };
 
-  const handleEscalate = async (report: Issue) => {
-    try {
-      const res = await fetch(`/api/issues/${report.id}/escalate`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to escalate");
-      queryClient.invalidateQueries({ queryKey: ["/api/issues"] });
-      toast({
-        title: "Escalation Triggered",
-        description: `Report #${report.trackingId} has been escalated.`,
-        variant: "destructive",
-      });
-    } catch {
-      toast({
-        title: "Escalation Failed",
-        description: "Could not escalate the issue.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   // Build chart data from analytics
   const chartData = analytics?.categoryCounts
@@ -201,74 +180,82 @@ export default function AdminDashboard() {
     <AdminLayout>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card data-testid="card-total-reports" className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Reports</p>
-              <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-total-reports">
-                {analytics?.totalIssues || 0}
-              </h3>
-              <div className="flex items-center mt-1 text-green-600 text-xs font-medium">
-                <ArrowUpRight size={14} className="mr-1" />
-                Active tracking
+        <Link href="/admin/map">
+          <Card data-testid="card-total-reports" className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total Reports</p>
+                <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-total-reports">
+                  {analytics?.totalIssues || 0}
+                </h3>
+                <div className="flex items-center mt-1 text-green-600 text-xs font-medium">
+                  <ArrowUpRight size={14} className="mr-1" />
+                  Active tracking
+                </div>
               </div>
-            </div>
-            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-              <AlertCircle size={24} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-resolved" className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Resolved</p>
-              <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-resolved-count">
-                {analytics?.resolvedIssues || 0}
-              </h3>
-              <div className="flex items-center mt-1 text-green-600 text-xs font-medium">
-                <ArrowUpRight size={14} className="mr-1" />
-                Successfully closed
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                <AlertCircle size={24} />
               </div>
-            </div>
-            <div className="h-12 w-12 bg-success/10 rounded-full flex items-center justify-center text-success">
-              <CheckCircle size={24} />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card data-testid="card-pending" className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Pending</p>
-              <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-pending-count">
-                {analytics?.pendingIssues || 0}
-              </h3>
-              <div className="flex items-center mt-1 text-orange-500 text-xs font-medium">
-                <Clock size={14} className="mr-1" />
-                Awaiting action
+        <Link href="/admin/map">
+          <Card data-testid="card-resolved" className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Resolved</p>
+                <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-resolved-count">
+                  {analytics?.resolvedIssues || 0}
+                </h3>
+                <div className="flex items-center mt-1 text-green-600 text-xs font-medium">
+                  <ArrowUpRight size={14} className="mr-1" />
+                  Successfully closed
+                </div>
               </div>
-            </div>
-            <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
-              <Clock size={24} />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="h-12 w-12 bg-success/10 rounded-full flex items-center justify-center text-success">
+                <CheckCircle size={24} />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card data-testid="card-categories" className="cursor-pointer hover:shadow-md transition-shadow">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Categories</p>
-              <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1">
-                {Object.keys(analytics?.categoryCounts || {}).length}
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">Issue types tracked</p>
-            </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
-              <MapPin size={24} />
-            </div>
-          </CardContent>
-        </Card>
+        <Link href="/admin/map">
+          <Card data-testid="card-pending" className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Pending</p>
+                <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1" data-testid="text-pending-count">
+                  {analytics?.pendingIssues || 0}
+                </h3>
+                <div className="flex items-center mt-1 text-orange-500 text-xs font-medium">
+                  <Clock size={14} className="mr-1" />
+                  Awaiting action
+                </div>
+              </div>
+              <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center text-orange-600">
+                <Clock size={24} />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/admin/map">
+          <Card data-testid="card-categories" className="cursor-pointer hover:shadow-md transition-shadow">
+            <CardContent className="p-6 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Categories</p>
+                <h3 className="text-2xl font-bold font-heading text-gray-900 mt-1">
+                  {Object.keys(analytics?.categoryCounts || {}).length}
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">Issue types tracked</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                <MapPin size={24} />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -285,7 +272,7 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                     <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: '#f3f4f6' }} />
+                    <RechartsTooltip cursor={{ fill: '#f3f4f6' }} />
                     <Bar dataKey="reports" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -322,7 +309,7 @@ export default function AdminDashboard() {
                         return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                       })}
                     </Pie>
-                    <Tooltip />
+                    <RechartsTooltip />
                     <Legend verticalAlign="bottom" height={36} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -388,26 +375,42 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3">
                           <StatusBadge status={report.status as any} />
                         </td>
-                        <td className="px-4 py-3">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" data-testid={`button-actions-${report.id}`}>
-                                <MoreHorizontal size={16} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Manage Issue</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleAssignClick(report)}>
-                                <UserPlus size={14} className="mr-2" /> Assign Team
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEscalate(report)}>
-                                <AlertCircle size={14} className="mr-2" /> Escalate Issue
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleViewReport(report.id)}>View Full Details</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <TooltipProvider>
+                              <UITooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-gray-500 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleAssignClick(report)}
+                                    data-testid={`button-assign-${report.id}`}
+                                  >
+                                    <UserPlus size={16} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Assign Team</TooltipContent>
+                              </UITooltip>
+
+
+
+                              <UITooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-gray-500 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => handleViewReport(report.id)}
+                                    data-testid={`button-view-${report.id}`}
+                                  >
+                                    <Eye size={16} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Details</TooltipContent>
+                              </UITooltip>
+                            </TooltipProvider>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -425,7 +428,7 @@ export default function AdminDashboard() {
           <DialogHeader>
             <DialogTitle>Assign Authority</DialogTitle>
             <DialogDescription>
-              Select the responsible department and escalation level for this issue.
+              Select the responsible department for this issue.
             </DialogDescription>
           </DialogHeader>
 
@@ -455,27 +458,7 @@ export default function AdminDashboard() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Escalation Level</label>
-                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                  <SelectTrigger data-testid="select-escalation">
-                    <SelectValue placeholder="Select Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESCALATION_LEVELS.map(level => (
-                      <SelectItem key={level.id} value={level.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
-                          <span>{level.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-gray-500">
-                  Level 1 is for local ward teams. Level 3+ notifies city management.
-                </p>
-              </div>
+
             </div>
           )}
 

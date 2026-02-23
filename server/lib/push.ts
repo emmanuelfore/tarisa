@@ -1,6 +1,8 @@
 import axios from 'axios';
 
 export async function sendPushNotification(expoPushToken: string, title: string, body: string, data?: any) {
+    // Disabled for now to speed up operations
+    return;
     if (!expoPushToken) return;
 
     const message = {

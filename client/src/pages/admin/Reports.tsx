@@ -40,6 +40,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import {
@@ -53,16 +59,12 @@ import {
   User,
   Loader2,
   Download,
+  Eye,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Issue, Department, Staff } from "@shared/schema";
 
-const ESCALATION_LEVELS = [
-  { id: "L1", name: "Level 1: Ward Team", color: "bg-blue-100 text-blue-700" },
-  { id: "L2", name: "Level 2: District Office", color: "bg-purple-100 text-purple-700" },
-  { id: "L3", name: "Level 3: Town House HQ", color: "bg-orange-100 text-orange-700" },
-  { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
-];
+
 
 export default function AdminReports() {
   const { toast } = useToast();
@@ -70,7 +72,7 @@ export default function AdminReports() {
   const [selectedReport, setSelectedReport] = useState<Issue | null>(null);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("");
+  // const [selectedLevel, setSelectedLevel] = useState(""); // Removed
   const [selectedStaff, setSelectedStaff] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -129,17 +131,16 @@ export default function AdminReports() {
 
   // Assign mutation
   const assignMutation = useMutation({
-    mutationFn: async ({ issueId, departmentId, staffId, escalationLevel }: {
+    mutationFn: async ({ issueId, departmentId, staffId }: {
       issueId: number;
       departmentId: number | null;
       staffId: number | null;
-      escalationLevel: string
     }) => {
       const res = await fetch(`/api/issues/${issueId}/assign`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ departmentId, staffId, escalationLevel }),
+        body: JSON.stringify({ departmentId, staffId }),
       });
       if (!res.ok) throw new Error("Failed to assign issue");
       return res.json();
@@ -165,7 +166,7 @@ export default function AdminReports() {
     setSelectedReport(report);
     setSelectedDept(report.assignedDepartmentId?.toString() || "");
     setSelectedStaff(report.assignedStaffId?.toString() || "");
-    setSelectedLevel(report.escalationLevel);
+    // setSelectedLevel(report.escalationLevel); // Removed
     setAssignDialogOpen(true);
   };
 
@@ -175,31 +176,11 @@ export default function AdminReports() {
       issueId: selectedReport.id,
       departmentId: selectedDept ? parseInt(selectedDept) : null,
       staffId: selectedStaff ? parseInt(selectedStaff) : null,
-      escalationLevel: selectedLevel || selectedReport.escalationLevel,
+      // escalationLevel: selectedLevel || selectedReport.escalationLevel, // Removed
     });
   };
 
-  const handleEscalate = async (report: Issue) => {
-    try {
-      const res = await fetch(`/api/issues/${report.id}/escalate`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to escalate");
-      queryClient.invalidateQueries({ queryKey: ["/api/issues"] });
-      toast({
-        title: "Escalation Triggered",
-        description: `Report #${report.trackingId} has been escalated.`,
-        variant: "destructive",
-      });
-    } catch {
-      toast({
-        title: "Escalation Failed",
-        description: "Could not escalate the issue.",
-        variant: "destructive",
-      });
-    }
-  };
+
 
   const availableStaff = useMemo(() => {
     if (!selectedDept) return [];
@@ -216,7 +197,7 @@ export default function AdminReports() {
     if (endDate) params.append("endDate", endDate);
 
     // Trigger download
-    window.location.href = `/api/reports/export?${params.toString()}`;
+    window.location.href = `/api/export/issues?format=csv&${params.toString()}`;
 
     toast({
       title: "Export Started",
@@ -240,7 +221,7 @@ export default function AdminReports() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-heading font-bold text-gray-900">Issue Management</h2>
-            <p className="text-gray-500">Track, assign, and escalate citizen reports.</p>
+            <p className="text-gray-500">Track and assign citizen reports.</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="gap-2" onClick={handleExportCSV} data-testid="button-export">
@@ -332,8 +313,7 @@ export default function AdminReports() {
                 <TableHead>Status & Priority</TableHead>
                 <TableHead>Date Reported</TableHead>
                 <TableHead>Assigned Authority</TableHead>
-                <TableHead>Escalation</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {/* <TableHead>Escalation</TableHead> */}<TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -406,37 +386,44 @@ export default function AdminReports() {
                           <span className="text-sm text-gray-400 italic">Unassigned</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <div className={`text-xs font-medium px-2 py-1 rounded inline-flex items-center gap-1.5 ${ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.color || "bg-gray-100 text-gray-600"
-                          }`}>
-                          {report.escalationLevel === 'L4' && <Siren size={12} />}
-                          {ESCALATION_LEVELS.find(l => l.id === report.escalationLevel)?.name || "Level 1"}
-                        </div>
-                      </TableCell>
+
                       <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" data-testid={`button-menu-${report.id}`}>
-                              <MoreHorizontal size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Manage Issue</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleAssignClick(report)}>
-                              <UserPlus size={14} className="mr-2" /> Assign Team
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEscalate(report)}>
-                              <AlertCircle size={14} className="mr-2" /> Escalate Issue
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <Link href={`/admin/reports/${report.id}`}>
-                              <DropdownMenuItem>
-                                View Full Details
-                              </DropdownMenuItem>
-                            </Link>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        <div className="flex items-center justify-end gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-gray-500 hover:text-primary hover:bg-primary/10"
+                                  onClick={() => handleAssignClick(report)}
+                                  data-testid={`button-assign-${report.id}`}
+                                >
+                                  <UserPlus size={16} />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Assign Team</TooltipContent>
+                            </Tooltip>
+
+
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link href={`/admin/reports/${report.id}`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-gray-500 hover:text-primary hover:bg-primary/10"
+                                    data-testid={`button-view-${report.id}`}
+                                  >
+                                    <Eye size={16} />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>View Details</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -453,7 +440,7 @@ export default function AdminReports() {
           <DialogHeader>
             <DialogTitle>Assign Authority</DialogTitle>
             <DialogDescription>
-              Select the responsible department and escalation level for this issue.
+              Select the responsible department for this issue.
             </DialogDescription>
           </DialogHeader>
 
@@ -521,28 +508,8 @@ export default function AdminReports() {
                 </Select>
               </div>
 
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Escalation Level</label>
-                <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                  <SelectTrigger data-testid="dialog-select-escalation">
-                    <SelectValue placeholder="Select Level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESCALATION_LEVELS.map(level => (
-                      <SelectItem key={level.id} value={level.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
-                          <span>{level.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-gray-500">
-                  Level 1 is for local ward teams. Level 3+ notifies city management.
-                </p>
-              </div>
             </div>
+
           )}
 
           <DialogFooter>
@@ -554,6 +521,6 @@ export default function AdminReports() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </AdminLayout >
   );
 }

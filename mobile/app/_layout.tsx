@@ -20,6 +20,7 @@ export default function RootLayout() {
         // Hide splash screen immediately as requested
         SplashScreen.hideAsync();
 
+        /* Push notifications disabled for now
         registerForPushNotificationsAsync().then(token => {
             if (token) console.log("Push Token Registered:", token);
         });
@@ -30,6 +31,7 @@ export default function RootLayout() {
         });
 
         return () => subscription.remove();
+        */
     }, []);
 
     return (

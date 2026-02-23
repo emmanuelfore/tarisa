@@ -14,17 +14,21 @@ const STEPS = {
     PHOTO: 1,
     LOCATION: 2,
     DETAILS: 3,
-    REVIEW: 4
+    REVIEW: 4,
+    SUCCESS: 5
 };
 
-const CATEGORIES = [
-    { id: 'Roads', label: 'Roads', icon: '🚧' },
-    { id: 'Water', label: 'Water', icon: '💧' },
-    { id: 'Sewer', label: 'Sewer', icon: '🕳️' },
-    { id: 'Waste', label: 'Waste', icon: '🗑️' },
-    { id: 'Lights', label: 'Lights', icon: '💡' },
-    { id: 'Other', label: 'Other', icon: '📝' },
-];
+const CATEGORY_ICONS: Record<string, string> = {
+    'pothole': '🚧',
+    'water_leak': '💧',
+    'street_light': '💡',
+    'refuse_collection': '🗑️',
+    'traffic_lights': '🚦',
+    'sewer': '🕳️',
+    'other': '📝'
+};
+
+const DEFAULT_ICON = '📝';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -42,6 +46,32 @@ export default function ReportScreen() {
     const [severity, setSeverity] = useState<string>('Medium');
     const [description, setDescription] = useState('');
     const [duplicateStatus, setDuplicateStatus] = useState<'checking' | 'clean' | 'found'>('checking');
+
+    const resetForm = () => {
+        setStep(STEPS.PHOTO);
+        setImage(null);
+        setLocation(null);
+        setAddress('Detecting location...');
+        setCategory(null);
+        setSeverity('Medium');
+        setDescription('');
+        setDuplicateStatus('checking');
+        setNearbyIssues([]);
+        setConfirmedUnique(false);
+    };
+
+    // Reset form when screen is focused or mounted
+    useEffect(() => {
+        resetForm();
+    }, []);
+
+    const { data: categories = [] } = useQuery({
+        queryKey: ['/api/categories'],
+        queryFn: async () => {
+            const res = await api.get('/api/categories');
+            return res.data;
+        }
+    });
 
     // Step 1: Image
     const pickImage = async (useCamera: boolean) => {
@@ -183,12 +213,12 @@ export default function ReportScreen() {
             // Invalidate queries to refresh data on other screens
             queryClient.invalidateQueries({ queryKey: ['issues-map'] });
             queryClient.invalidateQueries({ queryKey: ['my-issues'] });
+            queryClient.invalidateQueries({ queryKey: ['my-issues-full'] });
             queryClient.invalidateQueries({ queryKey: ['community-issues'] });
             queryClient.invalidateQueries({ queryKey: ['active-issues'] });
+            queryClient.invalidateQueries({ queryKey: ['user-stats'] });
 
-            Alert.alert("Success", "Report submitted successfully!", [
-                { text: "OK", onPress: () => router.replace('/(protected)/home') }
-            ]);
+            setStep(STEPS.SUCCESS);
         } catch (error: any) {
             console.error("Submit Error:", error.response?.data || error);
             Alert.alert("Error", error.response?.data?.error || "Failed to submit report. Please try again.");
@@ -306,16 +336,16 @@ export default function ReportScreen() {
         >
             <Text className="text-xl font-bold text-gray-900 mt-6 mb-6">Issue Details</Text>
 
-            <Text className="text-sm font-bold text-gray-700 mb-3">Categorize the problem</Text>
-            <View className="flex-row flex-wrap justify-between mb-6">
-                {CATEGORIES.map((cat) => (
+            <Text className="text-gray-900 font-bold text-lg mb-4">Category</Text>
+            <View className="flex-row flex-wrap -mx-1">
+                {categories.map((cat: any) => (
                     <TouchableOpacity
-                        key={cat.id}
-                        className={`w-[30%] aspect-square mb-4 items-center justify-center rounded-xl border-2 ${category === cat.id ? 'border-blue-600 bg-blue-50' : 'border-gray-100 bg-gray-50'}`}
-                        onPress={() => setCategory(cat.id)}
+                        key={cat.code}
+                        className={`px-4 py-3 rounded-xl m-1 border-2 flex-row items-center ${category === cat.code ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-100'}`}
+                        onPress={() => setCategory(cat.code)}
                     >
-                        <Text className="text-3xl mb-1">{cat.icon}</Text>
-                        <Text className={`text-xs font-bold ${category === cat.id ? 'text-blue-700' : 'text-gray-500'}`}>{cat.label}</Text>
+                        <Text className="text-xl mr-2">{CATEGORY_ICONS[cat.code] || DEFAULT_ICON}</Text>
+                        <Text className={`font-bold ${category === cat.code ? 'text-white' : 'text-gray-700'}`}>{cat.name}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -357,9 +387,11 @@ export default function ReportScreen() {
 
             <View className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-6">
                 <View className="flex-row items-center mb-4">
-                    <Text className="text-3xl mr-3">{CATEGORIES.find(c => c.id === category)?.icon}</Text>
+                    <Text className="text-3xl mr-3">{CATEGORY_ICONS[category!] || DEFAULT_ICON}</Text>
                     <View>
-                        <Text className="text-lg font-bold text-gray-900">{category}</Text>
+                        <Text className="text-lg font-bold text-gray-900">
+                            {categories.find((c: any) => c.code === category)?.name || category}
+                        </Text>
                         <Text className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded self-start mt-1">{severity} Severity</Text>
                     </View>
                 </View>
@@ -427,6 +459,48 @@ export default function ReportScreen() {
         </ScrollView>
     );
 
+    const renderSuccessStep = () => (
+        <View className="flex-1 px-6 items-center justify-center">
+            <View className="w-24 h-24 bg-green-100 rounded-full items-center justify-center mb-6">
+                <Check size={48} color="#16a34a" />
+            </View>
+            <Text className="text-3xl font-bold text-gray-900 mb-2">Success!</Text>
+            <Text className="text-gray-500 text-center text-lg mb-10">
+                Your report has been submitted successfully and is being reviewed.
+            </Text>
+
+            <View className="w-full bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-10">
+                <View className="flex-row items-center mb-4">
+                    <Text className="text-2xl mr-3">{CATEGORY_ICONS[category!] || DEFAULT_ICON}</Text>
+                    <Text className="text-lg font-bold text-gray-900">
+                        {categories.find((c: any) => c.code === category)?.name || category}
+                    </Text>
+                </View>
+                <View className="flex-row items-start">
+                    <MapPin size={18} color="#6b7280" className="mt-0.5" />
+                    <Text className="text-gray-600 ml-2 flex-1">{address}</Text>
+                </View>
+            </View>
+
+            <TouchableOpacity
+                className="w-full bg-blue-600 p-4 rounded-xl items-center shadow-lg mb-4"
+                onPress={resetForm}
+            >
+                <Text className="text-white font-bold text-lg">Report Another Issue</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                className="w-full bg-white border border-gray-200 p-4 rounded-xl items-center"
+                onPress={() => {
+                    resetForm();
+                    router.replace('/(protected)/home');
+                }}
+            >
+                <Text className="text-gray-700 font-bold text-base">Return Home</Text>
+            </TouchableOpacity>
+        </View>
+    );
+
     const isStepValid = () => {
         if (step === STEPS.PHOTO) return !!image;
         if (step === STEPS.LOCATION) return !!location;
@@ -441,66 +515,72 @@ export default function ReportScreen() {
         setConfirmedUnique(false);
     }, [location]);
 
-    const renderFooter = () => (
-        <View className="p-6 bg-white border-t border-gray-100">
-            {/* Confirmation Checkbox for Duplicates */}
-            {duplicateStatus === 'found' && (
-                <TouchableOpacity
-                    className="flex-row items-center mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100"
-                    onPress={() => setConfirmedUnique(!confirmedUnique)}
-                >
-                    <View className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${confirmedUnique ? 'bg-orange-500 border-orange-500' : 'border-gray-400 bg-white'}`}>
-                        {confirmedUnique && <Check size={14} color="white" />}
-                    </View>
-                    <Text className="text-gray-700 font-bold text-sm flex-1">
-                        I confirm this is a <Text className="text-orange-600">NEW</Text> issue, not a duplicate.
-                    </Text>
+    const renderFooter = () => {
+        if (step === STEPS.SUCCESS) return null;
+        return (
+            <View className="p-6 bg-white border-t border-gray-100">
+                {/* Confirmation Checkbox for Duplicates */}
+                {duplicateStatus === 'found' && (
+                    <TouchableOpacity
+                        className="flex-row items-center mb-4 bg-orange-50 p-3 rounded-lg border border-orange-100"
+                        onPress={() => setConfirmedUnique(!confirmedUnique)}
+                    >
+                        <View className={`w-5 h-5 rounded border-2 mr-3 items-center justify-center ${confirmedUnique ? 'bg-orange-500 border-orange-500' : 'border-gray-400 bg-white'}`}>
+                            {confirmedUnique && <Check size={14} color="white" />}
+                        </View>
+                        <Text className="text-gray-700 font-bold text-sm flex-1">
+                            I confirm this is a <Text className="text-orange-600">NEW</Text> issue, not a duplicate.
+                        </Text>
+                    </TouchableOpacity>
+                )}
+
+                <View className="flex-row space-x-4">
+                    {step > 1 && (
+                        <TouchableOpacity
+                            onPress={() => setStep(step - 1)}
+                            className="p-4 bg-gray-100 rounded-xl"
+                        >
+                            <ChevronLeft size={24} color="#374151" />
+                        </TouchableOpacity>
+                    )}
+
+                    {step < STEPS.REVIEW ? (
+                        <TouchableOpacity
+                            className={`flex-1 p-4 rounded-xl flex-row items-center justify-center ${isStepValid() ? 'bg-blue-600' : 'bg-gray-300'}`}
+                            onPress={() => setStep(step + 1)}
+                            disabled={!isStepValid()}
+                        >
+                            <Text className={`font-bold text-lg mr-2 ${isStepValid() ? 'text-white' : 'text-gray-500'}`}>Next Step</Text>
+                            <ChevronRight size={20} color={isStepValid() ? 'white' : '#6b7280'} />
+                        </TouchableOpacity>
+                    ) : (
+                        <TouchableOpacity
+                            className={`flex-1 p-4 rounded-xl flex-row items-center justify-center ${(loading || duplicateStatus === 'checking' || (duplicateStatus === 'found' && !confirmedUnique)) ? 'bg-gray-300' : 'bg-blue-600'}`}
+                            onPress={handleSubmit}
+                            disabled={loading || duplicateStatus === 'checking' || (duplicateStatus === 'found' && !confirmedUnique)}
+                        >
+                            {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Submit Report</Text>}
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+        );
+    };
+
+    const renderHeader = () => {
+        if (step === STEPS.SUCCESS) return null;
+        return (
+            <View className="px-6 py-4 border-b border-gray-100 flex-row justify-between items-center">
+                <View>
+                    <Text className="text-gray-900 font-bold text-lg">Report Issue</Text>
+                    <Text className="text-gray-400 text-xs">{step}/4 Steps</Text>
+                </View>
+                <TouchableOpacity onPress={() => router.back()} className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center">
+                    <X size={18} color="#6b7280" />
                 </TouchableOpacity>
-            )}
-
-            <View className="flex-row space-x-4">
-                {step > 1 && (
-                    <TouchableOpacity
-                        onPress={() => setStep(step - 1)}
-                        className="p-4 bg-gray-100 rounded-xl"
-                    >
-                        <ChevronLeft size={24} color="#374151" />
-                    </TouchableOpacity>
-                )}
-
-                {step < STEPS.REVIEW ? (
-                    <TouchableOpacity
-                        className={`flex-1 p-4 rounded-xl flex-row items-center justify-center ${isStepValid() ? 'bg-blue-600' : 'bg-gray-300'}`}
-                        onPress={() => setStep(step + 1)}
-                        disabled={!isStepValid()}
-                    >
-                        <Text className={`font-bold text-lg mr-2 ${isStepValid() ? 'text-white' : 'text-gray-500'}`}>Next Step</Text>
-                        <ChevronRight size={20} color={isStepValid() ? 'white' : '#6b7280'} />
-                    </TouchableOpacity>
-                ) : (
-                    <TouchableOpacity
-                        className={`flex-1 p-4 rounded-xl flex-row items-center justify-center ${(loading || duplicateStatus === 'checking' || (duplicateStatus === 'found' && !confirmedUnique)) ? 'bg-gray-300' : 'bg-blue-600'}`}
-                        onPress={handleSubmit}
-                        disabled={loading || duplicateStatus === 'checking' || (duplicateStatus === 'found' && !confirmedUnique)}
-                    >
-                        {loading ? <ActivityIndicator color="white" /> : <Text className="text-white font-bold text-lg">Submit Report</Text>}
-                    </TouchableOpacity>
-                )}
             </View>
-        </View>
-    );
-
-    const renderHeader = () => (
-        <View className="px-6 py-4 border-b border-gray-100 flex-row justify-between items-center">
-            <View>
-                <Text className="text-gray-900 font-bold text-lg">Report Issue</Text>
-                <Text className="text-gray-400 text-xs">{step}/4 Steps</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.back()} className="w-8 h-8 bg-gray-100 rounded-full items-center justify-center">
-                <X size={18} color="#6b7280" />
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     const CheckCircle = ({ size, color }: { size: number, color: string }) => (
         <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color + '20', alignItems: 'center', justifyContent: 'center' }}>
@@ -523,6 +603,7 @@ export default function ReportScreen() {
                     {step === STEPS.LOCATION && renderStep2()}
                     {step === STEPS.DETAILS && renderStep3()}
                     {step === STEPS.REVIEW && renderStep4()}
+                    {step === STEPS.SUCCESS && renderSuccessStep()}
                 </View>
 
                 {renderFooter()}

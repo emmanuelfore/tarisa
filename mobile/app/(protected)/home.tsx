@@ -27,19 +27,32 @@ export default function HomeScreen() {
     const { data: statsData } = useQuery({
         queryKey: ['user-stats'],
         queryFn: async () => {
-            const res = await api.get('/api/user/stats');
-            return res.data;
+            try {
+                const res = await api.get('/api/user/stats');
+                return res.data;
+            } catch (error) {
+                return null;
+            }
         }
     });
 
-    const { data: activeIssues } = useQuery({
-        queryKey: ['active-issues'],
+    const { data: communityIssues } = useQuery({
+        queryKey: ['active-issues-public'],
         queryFn: async () => {
-            if (!issues) return [];
-            return issues.filter((i: any) => i.status === 'submitted' || i.status === 'in_progress');
-        },
-        enabled: !!issues
+            // Fetch all public issues. We can filter by status query param if we want, or client side.
+            // Listing all allows us to filter client side easily.
+            try {
+                const res = await api.get('/api/issues');
+                return res.data;
+            } catch {
+                return [];
+            }
+        }
     });
+
+    const activeIssues = communityIssues?.filter((i: any) =>
+        i.status === 'submitted' || i.status === 'in_progress'
+    ) || [];
 
     const stats = {
         reports: statsData?.totalReports || 0,
@@ -140,8 +153,8 @@ export default function HomeScreen() {
                     <View className="mb-8">
                         <View className="flex-row justify-between items-center mb-4">
                             <View>
-                                <Text className="font-bold text-gray-900 text-2xl mb-0.5">My Active Issues</Text>
-                                <Text className="text-gray-600 text-sm font-medium">Tracking your reports</Text>
+                                <Text className="font-bold text-gray-900 text-2xl mb-0.5">Community Activity</Text>
+                                <Text className="text-gray-600 text-sm font-medium">Recent active reports</Text>
                             </View>
                             <TouchableOpacity
                                 onPress={() => router.push('/(protected)/community')}

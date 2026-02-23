@@ -5,10 +5,10 @@ import { api } from '../../lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Mail, Lock, User, Phone, MapPin, AlertCircle, Home as HomeIcon } from 'lucide-react-native';
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+
 
 // You'll need to add your Google Places API key here or in environment variables
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || 'YOUR_API_KEY_HERE';
+
 
 type ValidationErrors = {
     fullName?: string;
@@ -34,7 +34,7 @@ export default function Register() {
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [touched, setTouched] = useState<Set<string>>(new Set());
     const [generalError, setGeneralError] = useState<string | null>(null);
-    const addressRef = useRef<any>(null);
+
 
     const validateField = (field: string, value: string): string | undefined => {
         switch (field) {
@@ -80,10 +80,7 @@ export default function Register() {
         });
     };
 
-    const handleAddressSelect = (data: any, details: any) => {
-        const address = data.description || details?.formatted_address || '';
-        handleFieldChange('address', address);
-    };
+
 
     const handleRegister = async () => {
         setGeneralError(null);
@@ -167,10 +164,10 @@ export default function Register() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'fullName'
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : errors.fullName && touched.has('fullName')
-                                                ? 'border-red-400'
-                                                : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.fullName && touched.has('fullName')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
                                         }`}
                                     placeholder="John Doe"
                                     placeholderTextColor="#9ca3af"
@@ -197,10 +194,10 @@ export default function Register() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'email'
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : errors.email && touched.has('email')
-                                                ? 'border-red-400'
-                                                : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.email && touched.has('email')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
                                         }`}
                                     placeholder="you@example.com"
                                     placeholderTextColor="#9ca3af"
@@ -228,10 +225,10 @@ export default function Register() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'password'
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : errors.password && touched.has('password')
-                                                ? 'border-red-400'
-                                                : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.password && touched.has('password')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
                                         }`}
                                     placeholder="Create a password"
                                     placeholderTextColor="#9ca3af"
@@ -258,10 +255,10 @@ export default function Register() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'phone'
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : errors.phone && touched.has('phone')
-                                                ? 'border-red-400'
-                                                : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.phone && touched.has('phone')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
                                         }`}
                                     placeholder="+263 712 345 678"
                                     placeholderTextColor="#9ca3af"
@@ -288,10 +285,10 @@ export default function Register() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'nationalId'
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : errors.nationalId && touched.has('nationalId')
-                                                ? 'border-red-400'
-                                                : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.nationalId && touched.has('nationalId')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
                                         }`}
                                     placeholder="63-1234567A12"
                                     placeholderTextColor="#9ca3af"
@@ -307,83 +304,32 @@ export default function Register() {
                             )}
                         </View>
 
-                        {/* Address Input with Google Places Autocomplete */}
+                        {/* Address Input (Free Text) */}
                         <View className="mb-4">
                             <Text className="text-gray-700 font-semibold mb-2">Address</Text>
                             <View className="relative">
-                                <GooglePlacesAutocomplete
-                                    ref={addressRef}
-                                    placeholder="Start typing your address..."
-                                    onPress={handleAddressSelect}
-                                    query={{
-                                        key: GOOGLE_PLACES_API_KEY,
-                                        language: 'en',
-                                        components: 'country:zw', // Restrict to Zimbabwe
-                                    }}
-                                    fetchDetails={true}
-                                    textInputProps={{
-                                        value: formData.address,
-                                        onChangeText: (text: string) => handleFieldChange('address', text),
-                                        onFocus: () => setFocusedField('address'),
-                                        onBlur: () => setFocusedField(null),
-                                        placeholderTextColor: '#9ca3af',
-                                        autoCapitalize: 'words',
-                                        autoComplete: 'street-address',
-                                        style: {
-                                            paddingLeft: 48,
-                                            paddingRight: 16,
-                                            paddingVertical: 14,
-                                            fontSize: 16,
-                                            color: '#111827',
-                                            borderWidth: 2,
-                                            borderRadius: 12,
-                                            backgroundColor: focusedField === 'address' ? '#fffbeb' : '#f9fafb',
-                                            borderColor: focusedField === 'address'
-                                                ? '#fbbf24'
-                                                : errors.address && touched.has('address')
-                                                    ? '#f87171'
-                                                    : '#e5e7eb',
-                                        }
-                                    }}
-                                    styles={{
-                                        container: {
-                                            flex: 0,
-                                        },
-                                        listView: {
-                                            position: 'absolute',
-                                            top: 60,
-                                            zIndex: 1000,
-                                            backgroundColor: 'white',
-                                            borderRadius: 12,
-                                            borderWidth: 2,
-                                            borderColor: '#e5e7eb',
-                                            maxHeight: 200,
-                                        },
-                                        row: {
-                                            padding: 12,
-                                            height: 'auto',
-                                            minHeight: 50,
-                                        },
-                                        separator: {
-                                            height: 1,
-                                            backgroundColor: '#f3f4f6',
-                                        },
-                                        description: {
-                                            fontSize: 14,
-                                            color: '#111827',
-                                        },
-                                        loader: {
-                                            flexDirection: 'row',
-                                            justifyContent: 'flex-end',
-                                            height: 20,
-                                        },
-                                    }}
-                                    enablePoweredByContainer={false}
-                                    debounce={300}
-                                />
-                                <View className="absolute left-4 top-4 z-10 pointer-events-none">
+                                <View className="absolute left-4 top-4 z-10">
                                     <MapPin size={20} color={focusedField === 'address' ? '#f59e0b' : '#9ca3af'} />
                                 </View>
+                                <TextInput
+                                    className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'address'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : errors.address && touched.has('address')
+                                            ? 'border-red-400'
+                                            : 'border-gray-200'
+                                        }`}
+                                    placeholder="Click to enter your address manually"
+                                    placeholderTextColor="#9ca3af"
+                                    value={formData.address}
+                                    onChangeText={val => handleFieldChange('address', val)}
+                                    onFocus={() => setFocusedField('address')}
+                                    onBlur={() => setFocusedField(null)}
+                                    autoCapitalize="words"
+                                    autoComplete="street-address"
+                                    textContentType="fullStreetAddress"
+                                    multiline
+                                    numberOfLines={1}
+                                />
                             </View>
                             {errors.address && touched.has('address') && (
                                 <Text className="text-red-600 text-xs mt-1 ml-1">{errors.address}</Text>

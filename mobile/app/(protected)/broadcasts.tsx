@@ -24,8 +24,13 @@ export default function BroadcastsScreen() {
     const { data: notifications, isLoading: loadingNotifications, refetch: refetchNotifications } = useQuery({
         queryKey: ['notifications'],
         queryFn: async () => {
-            const res = await api.get('/api/notifications');
-            return res.data.map((n: any) => ({ ...n, itemType: 'notification' }));
+            try {
+                const res = await api.get('/api/notifications');
+                return res.data.map((n: any) => ({ ...n, itemType: 'notification' }));
+            } catch (error) {
+                // If 401 (Guest) or other error, return empty array to not break the UI
+                return [];
+            }
         }
     });
 

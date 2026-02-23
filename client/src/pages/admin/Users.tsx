@@ -199,6 +199,35 @@ export default function AdminUsers() {
     }
   });
 
+  // Update User Mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+      // Remove password if empty to avoid hashing empty string
+      const payload = { ...data };
+      if (!payload.password) delete payload.password;
+
+      const res = await apiRequest("PATCH", `/api/users/${id}`, payload);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setNewUserOpen(false);
+      setUserForm({});
+      toast({
+        title: "User Updated",
+        description: "User details have been successfully updated.",
+      });
+    },
+    onError: (err: any) => {
+      const msg = err.message || "Failed to update user.";
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    }
+  });
+
   // Update User Status
   const updateUserStatusMutation = useMutation({
     mutationFn: async ({ id, active }: { id: number; active: boolean }) => {
@@ -211,24 +240,25 @@ export default function AdminUsers() {
     }
   });
 
-  const handleAddUser = () => {
-    if (!userForm.username || !userForm.password || !userForm.role || !userForm.name) return;
-    createUserMutation.mutate(userForm);
+  const handleSaveUser = () => {
+    // Validation
+    if (!userForm.username || !userForm.role || !userForm.name) {
+      toast({ title: "Validation Error", description: "Please fill in all required fields.", variant: "destructive" });
+      return;
+    }
+
+    // For new users, password is required
+    if (!userForm.id && !userForm.password) {
+      toast({ title: "Validation Error", description: "Password is required for new users.", variant: "destructive" });
+      return;
+    }
+
+    if (userForm.id) {
+      updateUserMutation.mutate({ id: userForm.id, data: userForm });
+    } else {
+      createUserMutation.mutate(userForm);
+    }
   };
-
-
-
-  const isLoading = rolesLoading;
-
-  if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-[80vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AdminLayout>
-    );
-  }
 
   return (
     <AdminLayout>
@@ -248,7 +278,7 @@ export default function AdminUsers() {
 
 
           {/* Roles Tab */}
-          < TabsContent value="roles" className="mt-6" >
+          <TabsContent value="roles" className="mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
@@ -479,17 +509,20 @@ export default function AdminUsers() {
                 </Table>
               </CardContent>
             </Card>
-          </TabsContent >
+          </TabsContent>
 
           {/* System Users Tab */}
-          < TabsContent value="users" className="mt-6" >
+          <TabsContent value="users" className="mt-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>System Users</CardTitle>
                   <CardDescription>Manage application access and login credentials.</CardDescription>
                 </div>
-                <Dialog open={newUserOpen} onOpenChange={setNewUserOpen}>
+                <Dialog open={newUserOpen} onOpenChange={(open) => {
+                  setNewUserOpen(open);
+                  if (!open) setUserForm({}); // Reset form on close
+                }}>
                   <DialogTrigger asChild>
                     <Button className="gap-2">
                       <UserPlus size={16} /> Create User
@@ -497,8 +530,10 @@ export default function AdminUsers() {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Create New System User</DialogTitle>
-                      <DialogDescription>Add a new user who can log in to the system.</DialogDescription>
+                      <DialogTitle>{userForm.id ? 'Edit System User' : 'Create New System User'}</DialogTitle>
+                      <DialogDescription>
+                        {userForm.id ? 'Update user details and permissions.' : 'Add a new user who can log in to the system.'}
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                       <div className="grid gap-2">
@@ -520,11 +555,11 @@ export default function AdminUsers() {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label htmlFor="u-password">Password</Label>
+                        <Label htmlFor="u-password">Password {userForm.id && '(Leave blank to keep current)'}</Label>
                         <Input
                           id="u-password"
                           type="password"
-                          placeholder="••••••••"
+                          placeholder={userForm.id ? "Only entry to change" : "••••••••"}
                           value={userForm.password || ""}
                           onChange={e => setUserForm({ ...userForm, password: e.target.value })}
                         />
@@ -594,9 +629,9 @@ export default function AdminUsers() {
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setNewUserOpen(false)}>Cancel</Button>
-                      <Button onClick={handleAddUser} disabled={createUserMutation.isPending}>
-                        {createUserMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Create User
+                      <Button onClick={handleSaveUser} disabled={createUserMutation.isPending || updateUserMutation.isPending}>
+                        {(createUserMutation.isPending || updateUserMutation.isPending) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        {userForm.id ? 'Save Changes' : 'Create User'}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -645,7 +680,20 @@ export default function AdminUsers() {
                                 <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal size={16} /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>Edit Details</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setUserForm({
+                                    id: user.id,
+                                    name: user.name,
+                                    username: user.username,
+                                    role: user.role,
+                                    departmentId: user.departmentId,
+                                    permissions: user.permissions,
+                                    // Don't set password for edit unless changing it
+                                  });
+                                  setNewUserOpen(true); // Re-using create dialog for now, ideally separate
+                                }}>
+                                  Edit Details
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>Reset Password</DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 {user.active ? (

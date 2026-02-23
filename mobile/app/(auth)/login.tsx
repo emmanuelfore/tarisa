@@ -99,8 +99,8 @@ export default function Login() {
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${(isAdmin ? focusedField === 'username' : focusedField === 'email')
-                                            ? 'border-amber-400 bg-amber-50'
-                                            : 'border-gray-200'
+                                        ? 'border-amber-400 bg-amber-50'
+                                        : 'border-gray-200'
                                         }`}
                                     placeholder={isAdmin ? "Enter username" : "you@example.com"}
                                     placeholderTextColor="#9ca3af"
@@ -190,7 +190,7 @@ export default function Login() {
 
                         <TouchableOpacity
                             className="w-full py-4 items-center"
-                            onPress={() => router.replace('/(protected)/home')}
+                            onPress={() => router.replace('/(protected)/community')}
                             activeOpacity={0.7}
                         >
                             <View className="flex-row items-center">

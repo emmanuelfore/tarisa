@@ -9,20 +9,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState } from 'react';
 import clsx from 'clsx';
 
-const CATEGORIES = [
-    { id: 'all', label: 'All' },
-    { id: 'Roads', label: 'Roads' },
-    { id: 'Water', label: 'Water' },
-    { id: 'Sewer', label: 'Sewer' },
-    { id: 'Waste', label: 'Waste' },
-    { id: 'Lights', label: 'Lights' },
-    { id: 'Other', label: 'Other' },
-];
-
 export default function CommunityScreen() {
     const router = useRouter();
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
+
+    const { data: categories = [] } = useQuery({
+        queryKey: ['/api/categories'],
+        queryFn: async () => {
+            const res = await api.get('/api/categories');
+            return res.data;
+        }
+    });
+
+    const displayCategories = [
+        { id: 'all', label: 'All' },
+        ...categories.map((c: any) => ({ id: c.code, label: c.name }))
+    ];
 
     const { data: issues, isLoading, error } = useQuery({
         queryKey: ['community-issues', selectedCategory],
@@ -152,7 +155,7 @@ export default function CommunityScreen() {
 
                 {/* Category Filter */}
                 <FlatList
-                    data={CATEGORIES}
+                    data={displayCategories}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     className="-mx-2"

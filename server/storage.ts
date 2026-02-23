@@ -1,9 +1,8 @@
 
 import {
-  citizens, departments, staff, issues, comments, timeline, broadcasts, users, credits,
+  citizens, departments, issues, comments, timeline, broadcasts, users, credits,
   type Citizen, type InsertCitizen,
   type Department, type InsertDepartment,
-  type Staff, type InsertStaff,
   type Issue, type InsertIssue,
   type Comment, type InsertComment,
   type Timeline, type InsertTimeline,
@@ -50,13 +49,8 @@ export interface IStorage {
   createDepartment(department: InsertDepartment): Promise<Department>;
   listDepartments(): Promise<Department[]>;
 
-  // Staff
-  getStaff(id: number): Promise<Staff | undefined>;
-  createStaff(staff: InsertStaff): Promise<Staff>;
-  listStaff(): Promise<Staff[]>;
-  listStaffByDepartment(departmentId: number): Promise<Staff[]>;
-  updateStaff(id: number, data: Partial<InsertStaff>): Promise<Staff | undefined>;
-  deleteStaff(id: number): Promise<void>;
+  // Staff methods removed. Use Admin Users methods.
+  listUsersByDepartment(departmentId: number): Promise<User[]>;
 
   // Issues
   getIssue(id: number): Promise<Issue | undefined>;
@@ -71,7 +65,7 @@ export interface IStorage {
     startDate?: Date;
     endDate?: Date;
   }): Promise<Issue[]>;
-  assignIssue(issueId: number, departmentId: number | null, staffId: number | null, escalationLevel: string): Promise<Issue | undefined>;
+  assignIssue(issueId: number, departmentId: number | null, userId: number | null, escalationLevel: string): Promise<Issue | undefined>;
 
   // Analytics
   getAnalytics(): Promise<{
@@ -125,7 +119,7 @@ export interface IStorage {
   hasUserUpvoted(issueId: number, userId: number): Promise<boolean>;
 
   // User Stats
-  getUserStats(userId: number): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }>;
+  getUserStats(id: number, isCitizen?: boolean): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }>;
   listWards(localAuthorityId?: number): Promise<Ward[]>;
   listSuburbs(wardId?: number): Promise<Suburb[]>;
 
@@ -145,7 +139,10 @@ export interface IStorage {
   getRoleBySlug(slug: string): Promise<Role | undefined>;
   createRole(role: InsertRole): Promise<Role>;
   updateRole(slug: string, data: Partial<InsertRole>): Promise<Role | undefined>;
-  deleteRole(id: number): Promise<void>;
+  // Staff implementation removed.
+
+  // Staff implementation removed.
+  listUsersByDepartment(departmentId: number): Promise<User[]>;
 
   // Analytics
   getAnalytics(): Promise<{
@@ -275,31 +272,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Staff
-  async getStaff(id: number): Promise<Staff | undefined> {
-    const [staffMember] = await db.select().from(staff).where(eq(staff.id, id));
-    return staffMember || undefined;
-  }
-
-  async createStaff(insertStaff: InsertStaff): Promise<Staff> {
-    const [staffMember] = await db.insert(staff).values(insertStaff).returning();
-    return staffMember;
-  }
-
-  async listStaff(): Promise<Staff[]> {
-    return await db.select().from(staff);
-  }
-
-  async listStaffByDepartment(departmentId: number): Promise<Staff[]> {
-    return await db.select().from(staff).where(eq(staff.departmentId, departmentId));
-  }
-
-  async updateStaff(id: number, data: Partial<InsertStaff>): Promise<Staff | undefined> {
-    const [staffMember] = await db.update(staff).set(data).where(eq(staff.id, id)).returning();
-    return staffMember || undefined;
-  }
-
-  async deleteStaff(id: number): Promise<void> {
-    await db.delete(staff).where(eq(staff.id, id));
+  // Staff implementation removed.
+  async listUsersByDepartment(departmentId: number): Promise<User[]> {
+    return await db.select().from(users).where(eq(users.departmentId, departmentId));
   }
 
   // Issues
@@ -366,7 +341,7 @@ export class DatabaseStorage implements IStorage {
       severity: insertIssue.severity ?? 50,
       escalationLevel: insertIssue.escalationLevel ?? 'L1',
       assignedDepartmentId: autoAssignedDepartmentId,
-      assignedStaffId: insertIssue.assignedStaffId ?? null,
+      assignedUserId: insertIssue.assignedUserId ?? null,
       assignedOfficerId: insertIssue.assignedOfficerId ?? null,
       jurisdictionId: insertIssue.jurisdictionId ?? null,
       wardNumber: insertIssue.wardNumber ?? null,
@@ -433,7 +408,7 @@ export class DatabaseStorage implements IStorage {
     if (data.severity !== undefined) updateData.severity = data.severity;
     if (data.escalationLevel !== undefined) updateData.escalationLevel = data.escalationLevel;
     if (data.assignedDepartmentId !== undefined) updateData.assignedDepartmentId = data.assignedDepartmentId;
-    if (data.assignedStaffId !== undefined) updateData.assignedStaffId = data.assignedStaffId;
+    if (data.assignedUserId !== undefined) updateData.assignedUserId = data.assignedUserId;
     if (data.assignedOfficerId !== undefined) updateData.assignedOfficerId = data.assignedOfficerId;
     if (data.jurisdictionId !== undefined) updateData.jurisdictionId = data.jurisdictionId;
     if (data.wardNumber !== undefined) updateData.wardNumber = data.wardNumber;
@@ -498,14 +473,18 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({
         ...getTableColumns(issues),
-        upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
-        comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
+        /*
+          upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
+          comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
+        */
       })
       .from(issues)
+      /*
       .leftJoin(upvotes, eq(issues.id, upvotes.issueId))
       .leftJoin(comments, eq(issues.id, comments.issueId))
+      */
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .groupBy(issues.id)
+      // .groupBy(issues.id)
       .orderBy(desc(issues.createdAt));
 
     return result as any;
@@ -514,10 +493,9 @@ export class DatabaseStorage implements IStorage {
   async assignIssue(
     issueId: number,
     departmentId: number | null,
-    staffId: number | null,
-    escalationLevel: string
+    userId: number | null,
+    escalationLevel: string = "L1" // Defaulting to L1 as it's deprecated
   ): Promise<Issue | undefined> {
-    // Lock assignment for resolved issues
     const currentIssue = await this.getIssue(issueId);
     if (currentIssue?.status === 'resolved') {
       throw new Error("Cannot reassign a resolved issue.");
@@ -527,7 +505,7 @@ export class DatabaseStorage implements IStorage {
       .update(issues)
       .set({
         assignedDepartmentId: departmentId,
-        assignedStaffId: staffId,
+        assignedUserId: userId,
         escalationLevel,
         status: 'in_progress',
         updatedAt: new Date(),
@@ -536,16 +514,50 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     if (issue) {
-      // Add timeline entry
       await this.createTimeline({
         issueId: issue.id,
         type: 'assigned',
         title: 'Issue Assigned',
-        description: `Assigned to department(escalation: ${escalationLevel})`,
+        description: `Assigned to department${userId ? ' and user' : ''}`,
         user: 'Admin',
       });
     }
 
+    return issue || undefined;
+  }
+
+  async verifyIssue(issueId: number, verifiedByUserId: number): Promise<Issue | undefined> {
+    const [issue] = await db
+      .update(issues)
+      .set({
+        status: 'resolved', // Ensure it's resolved
+        verifiedAt: new Date(),
+        verifiedBy: verifiedByUserId,
+        updatedAt: new Date(),
+      })
+      .where(eq(issues.id, issueId))
+      .returning();
+
+    if (issue) {
+      await this.createTimeline({
+        issueId: issue.id,
+        type: 'status',
+        title: 'Issue Verified',
+        description: 'Issue resolution has been verified by department head.',
+        user: 'Manager',
+      });
+
+      // Award extra credits for verification?
+      const citizen = await this.getCitizen(issue.citizenId);
+      if (citizen && citizen.email !== "anonymous@tarisa.gov.zw") {
+        await this.awardCredits(
+          citizen.id,
+          CREDIT_VALUES.verification_bonus,
+          'verification_bonus',
+          issue.id
+        );
+      }
+    }
     return issue || undefined;
   }
 
@@ -994,37 +1006,53 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count > 0;
   }
 
-  async getUserStats(userId: number): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }> {
-    // Bridge: User -> Citizen (via Email)
-    const user = await this.getUser(userId);
-    if (!user || !user.email) return { totalReports: 0, totalCredits: 0, resolvedReports: 0 };
+  async getUserStats(id: number, isCitizen?: boolean): Promise<{ totalReports: number; totalCredits: number; resolvedReports: number }> {
+    let citizenId: number | undefined;
 
-    let citizen = await this.getCitizenByEmail(user.email);
-    if (!citizen) {
-      // Auto-create citizen profile so stats (and future reports) work immediately
-      citizen = await this.createCitizen({
-        name: user.name,
-        email: user.email,
-        phone: "Verified User",
-        address: "Verified User",
-        ward: "Unknown",
-        emailVerified: true,
-        status: 'verified'
-      });
+    if (isCitizen) {
+      citizenId = id;
+    } else {
+      // First try to find citizen by userId (if we use unified IDs)
+      const citizenById = await this.getCitizen(id);
+      if (citizenById) {
+        citizenId = citizenById.id;
+      } else {
+        // Bridge: User -> Citizen (via Email)
+        const user = await this.getUser(id);
+        if (user && user.email) {
+          const citizen = await this.getCitizenByEmail(user.email);
+          if (citizen) {
+            citizenId = citizen.id;
+          } else {
+            // Auto-create citizen profile so stats (and future reports) work immediately
+            const newCitizen = await this.createCitizen({
+              name: user.name,
+              email: user.email,
+              phone: "Verified User",
+              address: "Verified User",
+              ward: "Unknown",
+              emailVerified: true,
+              status: 'verified'
+            });
+            citizenId = newCitizen.id;
+          }
+        }
+      }
     }
 
-    const citizenId = citizen.id;
+    if (!citizenId) return { totalReports: 0, totalCredits: 0, resolvedReports: 0 };
 
-    const [reports] = await db.select({ count: count() }).from(issues).where(eq(issues.citizenId, citizenId));
-    const [resolved] = await db
-      .select({ count: count() })
-      .from(issues)
-      .where(and(eq(issues.citizenId, citizenId), eq(issues.status, "resolved")));
-    const totalCredits = await this.getCitizenCredits(citizenId);
+    if (!citizenId) return { totalReports: 0, totalCredits: 0, resolvedReports: 0 };
+
+    const [reportsResult, resolvedResult, totalCredits] = await Promise.all([
+      db.select({ count: count() }).from(issues).where(eq(issues.citizenId, citizenId)),
+      db.select({ count: count() }).from(issues).where(and(eq(issues.citizenId, citizenId), eq(issues.status, "resolved"))),
+      this.getCitizenCredits(citizenId)
+    ]);
 
     return {
-      totalReports: reports?.count || 0,
-      resolvedReports: resolved?.count || 0,
+      totalReports: reportsResult[0]?.count || 0,
+      resolvedReports: resolvedResult[0]?.count || 0,
       totalCredits
     };
   }
@@ -1049,6 +1077,31 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(issues.createdAt)); // Show newest first
 
     return result;
+  }
+
+
+  // Issue Categories
+  async listIssueCategories(): Promise<IssueCategory[]> {
+    return await db.select().from(issueCategories).orderBy(issueCategories.name);
+  }
+
+  async getIssueCategory(code: string): Promise<IssueCategory | undefined> {
+    const [category] = await db.select().from(issueCategories).where(eq(issueCategories.code, code));
+    return category;
+  }
+
+  async createIssueCategory(category: InsertIssueCategory): Promise<IssueCategory> {
+    const [newCategory] = await db.insert(issueCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateIssueCategoryByCode(code: string, data: Partial<InsertIssueCategory>): Promise<IssueCategory | undefined> {
+    const [updatedCategory] = await db
+      .update(issueCategories)
+      .set(data)
+      .where(eq(issueCategories.code, code))
+      .returning();
+    return updatedCategory;
   }
 
   async getNearbyIssues(lat: number, lng: number, radiusKm: number = 0.05): Promise<any[]> {

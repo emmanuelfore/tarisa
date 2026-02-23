@@ -27,15 +27,15 @@ export default function CitizenProfile() {
 
         {/* Digital ID Card */}
         <div className="relative mb-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-800 to-green-600 rounded-2xl transform rotate-1 opacity-20"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-800 to-blue-600 rounded-2xl transform rotate-1 opacity-20"></div>
           <Card className="border-none shadow-xl bg-white overflow-hidden relative">
             {/* Zim Coat of Arms Watermark Placeholder */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
-               <Building2 size={200} />
+              <Building2 size={200} />
             </div>
 
-            <div className="bg-green-700 h-3 w-full" /> {/* Top Green Bar */}
-            
+            <div className="bg-blue-700 h-3 w-full" /> {/* Top Blue Bar */}
+
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex gap-4">
@@ -46,7 +46,7 @@ export default function CitizenProfile() {
                   <div>
                     <h2 className="text-xl font-bold text-gray-900 uppercase tracking-tight">Phiri</h2>
                     <p className="text-lg text-gray-700 mb-1">Tatenda James</p>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex items-center w-fit gap-1">
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 flex items-center w-fit gap-1">
                       <ShieldCheck className="w-3 h-3" /> Verified Resident
                     </Badge>
                   </div>
@@ -79,7 +79,7 @@ export default function CitizenProfile() {
         {/* Contact Details */}
         <div className="space-y-6 mb-8">
           <h3 className="font-heading font-semibold text-gray-900">Contact Details</h3>
-          
+
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
             <div className="p-4 flex items-center gap-4 border-b border-gray-50">
               <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
@@ -99,7 +99,7 @@ export default function CitizenProfile() {
                 <p className="text-xs text-gray-400">Email Address</p>
               </div>
             </div>
-             <div className="p-4 flex items-center gap-4">
+            <div className="p-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-500">
                 <MapPin size={20} />
               </div>
@@ -113,8 +113,8 @@ export default function CitizenProfile() {
 
         {/* Account Actions */}
         <div className="space-y-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
           >
             <span className="flex items-center gap-3">
@@ -124,8 +124,8 @@ export default function CitizenProfile() {
             <ChevronRight className="text-gray-400" size={16} />
           </Button>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 active:scale-[0.98] transition-transform"
           >
             <span className="flex items-center gap-3">
@@ -135,11 +135,11 @@ export default function CitizenProfile() {
             <ChevronRight className="text-gray-400" size={16} />
           </Button>
 
-           <Button 
-             variant="outline" 
-             className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50 active:scale-[0.98] transition-transform"
-             onClick={handleLogout}
-           >
+          <Button
+            variant="outline"
+            className="w-full justify-between h-14 bg-white hover:bg-gray-50 border-gray-200 text-red-600 hover:text-red-700 hover:bg-red-50 active:scale-[0.98] transition-transform"
+            onClick={handleLogout}
+          >
             <span className="flex items-center gap-3">
               <LogOut />
               Log Out

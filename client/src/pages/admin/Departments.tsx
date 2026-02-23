@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Edit2, MapPin, Clock } from "lucide-react";
+import { Loader2, Edit2, MapPin, Clock, Search, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
     Dialog,
@@ -38,6 +38,8 @@ export default function AdminDepartments() {
     const queryClient = useQueryClient();
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [selectedDept, setSelectedDept] = useState<Department | null>(null);
+    const [selectedCityId, setSelectedCityId] = useState<string>("all");
+    const [searchTerm, setSearchTerm] = useState("");
     const [editForm, setEditForm] = useState({
         code: "",
         responseTimeSlaHours: 0,
@@ -141,6 +143,14 @@ export default function AdminDepartments() {
         });
     };
 
+    const handleExportCSV = () => {
+        window.location.href = "/api/export/departments";
+        toast({
+            title: "Export Started",
+            description: "Your department list is downloading...",
+        });
+    };
+
     const { data: jurisdictions = [] } = useQuery<any[]>({
         queryKey: ['/api/jurisdictions'],
     });
@@ -151,11 +161,12 @@ export default function AdminDepartments() {
         ['council', 'local_authority', 'district', 'municipality'].includes(j.level?.toLowerCase())
     );
 
-    const [selectedCityId, setSelectedCityId] = useState<string>("all");
-
-    const filteredDepartments = departments?.filter(d =>
-        selectedCityId === "all" || d.jurisdictionId?.toString() === selectedCityId
-    );
+    const filteredDepartments = departments?.filter(d => {
+        const matchesCity = selectedCityId === "all" || d.jurisdictionId?.toString() === selectedCityId;
+        const matchesSearch = d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (d.code?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+        return matchesCity && matchesSearch;
+    });
 
     return (
         <AdminLayout>
@@ -171,15 +182,19 @@ export default function AdminDepartments() {
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white p-4 rounded-lg border shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-primary/10 rounded-full text-primary">
-                            <MapPin size={18} />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">Filter by Authority:</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white p-4 rounded-lg border shadow-sm">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                            placeholder="Search by name or code..."
+                            className="pl-9"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
+
                     <Select value={selectedCityId} onValueChange={setSelectedCityId}>
-                        <SelectTrigger className="w-[250px]">
+                        <SelectTrigger>
                             <SelectValue placeholder="All Authorities" />
                         </SelectTrigger>
                         <SelectContent>
@@ -191,6 +206,11 @@ export default function AdminDepartments() {
                             ))}
                         </SelectContent>
                     </Select>
+
+                    <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
+                        <Download size={16} />
+                        Export CSV
+                    </Button>
                 </div>
 
                 <Card>

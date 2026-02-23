@@ -20,7 +20,6 @@ import AdminMap from "@/pages/admin/Map";
 import AdminReports from "@/pages/admin/Reports";
 import AdminSettings from "@/pages/admin/Settings";
 import AdminCitizens from "@/pages/admin/Citizens";
-import AdminStaff from "@/pages/admin/Staff";
 import AdminUsers from "@/pages/admin/Users";
 import AdminBroadcast from "@/pages/admin/Broadcast";
 import AdminAnalytics from "@/pages/admin/Analytics";
@@ -30,7 +29,10 @@ import AdminCategories from "@/pages/admin/Categories";
 import AdminIssueDetail from "@/pages/admin/IssueDetail";
 import AdminCitizenProfile from "@/pages/admin/CitizenProfile";
 import AdminProfile from "@/pages/admin/Profile";
+import AdminMobileApp from "@/pages/admin/MobileApp";
 import Signup from "@/pages/auth/Signup";
+import ForgotPassword from "@/pages/auth/ForgotPassword";
+import ResetPassword from "@/pages/auth/ResetPassword";
 
 function Router() {
   return (
@@ -41,6 +43,8 @@ function Router() {
       </Route>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* Citizen Routes - Protected */}
       <Route path="/citizen/home">
@@ -78,9 +82,7 @@ function Router() {
       <Route path="/admin/citizens">
         <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager', 'officer']}><AdminCitizens /></ProtectedRoute>
       </Route>
-      <Route path="/admin/staff">
-        <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager']}><AdminStaff /></ProtectedRoute>
-      </Route>
+      {/* Staff route removed */}
       <Route path="/admin/users">
         <ProtectedRoute allowedRoles={['super_admin', 'admin']}><AdminUsers /></ProtectedRoute>
       </Route>
@@ -98,6 +100,9 @@ function Router() {
       </Route>
       <Route path="/admin/categories">
         <ProtectedRoute allowedRoles={['super_admin', 'admin']}><AdminCategories /></ProtectedRoute>
+      </Route>
+      <Route path="/admin/mobile-app">
+        <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager', 'officer']}><AdminMobileApp /></ProtectedRoute>
       </Route>
       <Route path="/admin/profile">
         <ProtectedRoute allowedRoles={['super_admin', 'admin', 'manager', 'officer']}><AdminProfile /></ProtectedRoute>

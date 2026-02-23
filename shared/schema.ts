@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, serial, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -148,7 +148,7 @@ export const departmentsRelations = relations(departments, ({ one, many }) => ({
   }),
   officers: many(officers),
   issues: many(issues),
-  staff: many(staff), // Backwards compatibility
+  // staff: many(staff), // Removed
 }));
 
 
@@ -219,9 +219,10 @@ export const issues = pgTable("issues", {
   citizenId: integer("citizen_id").references(() => citizens.id).notNull(),
 
   assignedDepartmentId: integer("assigned_department_id").references(() => departments.id),
-  assignedStaffId: integer("assigned_staff_id").references(() => staff.id),
+  assignedUserId: integer("assigned_user_id").references(() => users.id), // Replaces assignedStaffId
   assignedOfficerId: integer("assigned_officer_id").references(() => officers.id),
 
+  // Escalation is deprecated but kept notNull for DB compatibility
   escalationLevel: text("escalation_level").default("L1").notNull(),
 
   jurisdictionId: integer("jurisdiction_id").references(() => jurisdictions.id),
@@ -238,6 +239,16 @@ export const issues = pgTable("issues", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   resolvedAt: timestamp("resolved_at"),
+
+  // New Verification Fields
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: integer("verified_by").references(() => users.id),
+}, (table) => {
+  return {
+    citizenIdx: index("idx_issues_citizen").on(table.citizenId),
+    statusIdx: index("idx_issues_status").on(table.status),
+    createdIdx: index("idx_issues_created_at").on(table.createdAt),
+  };
 });
 
 export const issuesRelations = relations(issues, ({ one, many }) => ({
@@ -249,9 +260,9 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
     fields: [issues.assignedDepartmentId],
     references: [departments.id],
   }),
-  assignedStaff: one(staff, {
-    fields: [issues.assignedStaffId],
-    references: [staff.id],
+  assignedUser: one(users, {
+    fields: [issues.assignedUserId],
+    references: [users.id],
   }),
   assignedOfficer: one(officers, {
     fields: [issues.assignedOfficerId],
@@ -331,23 +342,9 @@ export const suburbsRelations = relations(suburbs, ({ one, many }) => ({
 
 
 // Staff members
-export const staff = pgTable("staff", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  departmentId: integer("department_id").references(() => departments.id).notNull(),
-  phone: text("phone"),
-  email: text("email"),
-  active: boolean("active").default(true).notNull(),
-});
+// Staff table removed. Use users table instead.
 
-export const staffRelations = relations(staff, ({ one, many }) => ({
-  department: one(departments, {
-    fields: [staff.departmentId],
-    references: [departments.id],
-  }),
-  assignedIssues: many(issues),
-}));
+// Staff relations removed.
 
 // Comments on issues
 export const comments = pgTable("comments", {
@@ -524,9 +521,7 @@ export const insertDepartmentSchema = createInsertSchema(departments).omit({
   id: true,
 });
 
-export const insertStaffSchema = createInsertSchema(staff).omit({
-  id: true,
-});
+// Staff schema removed
 
 export const insertIssueSchema = createInsertSchema(issues).omit({
   id: true,
@@ -719,8 +714,8 @@ export type InsertCitizen = z.infer<typeof insertCitizenSchema>;
 export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
 
-export type Staff = typeof staff.$inferSelect;
-export type InsertStaff = z.infer<typeof insertStaffSchema>;
+// export type Staff = typeof staff.$inferSelect;
+
 
 export type Issue = typeof issues.$inferSelect;
 export type InsertIssue = z.infer<typeof insertIssueSchema>;

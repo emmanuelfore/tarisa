@@ -1,10 +1,13 @@
-import { View, Text, TouchableOpacity, Alert, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
 import { useRouter } from 'expo-router';
 import { LogOut, User, Award, Shield, FileText, Settings, ChevronRight, UserCircle } from 'lucide-react-native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { clearSessionCookie } from '../../lib/auth-storage';
 
 export default function ProfileScreen() {
+    const queryClient = useQueryClient();
     const router = useRouter();
 
     const { data: user, isLoading } = useQuery({
@@ -23,9 +26,13 @@ export default function ProfileScreen() {
     const handleLogout = async () => {
         try {
             await api.post('/api/auth/logout');
+            await clearSessionCookie(); // Clear manual cookie
+            queryClient.clear(); // Clear all data from cache
             Alert.alert('Logged out', 'See you soon!');
             router.replace('/(auth)/login');
         } catch (error) {
+            await clearSessionCookie(); // Ensure clear even on error
+            queryClient.clear(); // Ensure clear even on error
             router.replace('/(auth)/login');
         }
     };

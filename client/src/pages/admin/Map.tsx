@@ -116,7 +116,7 @@ export default function AdminMap() {
   const [mapZoom, setMapZoom] = useState(14);
   const [shouldFitAll, setShouldFitAll] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [showClusters, setShowClusters] = useState(true);
+  const [showClusters, setShowClusters] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showDensityHeat, setShowDensityHeat] = useState(false);
   const [timeRange, setTimeRange] = useState("7days");
@@ -153,18 +153,16 @@ export default function AdminMap() {
   };
 
   const filters = useMemo(() => {
-    return ['All', ...categoryData.map(c => c.name)];
+    return [
+      { code: 'All', name: 'All' },
+      ...categoryData.map(c => ({ code: c.code, name: c.name }))
+    ];
   }, [categoryData]);
 
-  const filteredIssues = useMemo(() => {
+  const baseFilteredIssues = useMemo(() => {
     if (!issues) return [];
 
     let result = issues;
-
-    // Filter by Category
-    if (activeFilter !== 'All') {
-      result = result.filter(issue => issue.category === activeFilter);
-    }
 
     // Filter by Search Query
     if (debouncedSearch.trim()) {
@@ -208,7 +206,12 @@ export default function AdminMap() {
     }
 
     return result;
-  }, [issues, activeFilter, debouncedSearch, timeRange, customDateFrom, customDateTo]);
+  }, [issues, debouncedSearch, timeRange, customDateFrom, customDateTo]);
+
+  const filteredIssues = useMemo(() => {
+    if (activeFilter === 'All') return baseFilteredIssues;
+    return baseFilteredIssues.filter(issue => issue.category === activeFilter);
+  }, [baseFilteredIssues, activeFilter]);
 
   // Handle filtering state to show loading indicator
   useEffect(() => {
@@ -220,10 +223,9 @@ export default function AdminMap() {
   // Calculate statistics
   const statistics = useMemo(() => {
     const total = filteredIssues.length;
-    const categoryNames = categoryData.map(c => c.name);
-    const byCategory = categoryNames.map(cat => ({
-      name: cat,
-      value: filteredIssues.filter(i => i.category === cat).length,
+    const byCategory = categoryData.map(cat => ({
+      name: cat.name,
+      value: filteredIssues.filter(i => i.category === cat.code).length,
     })).filter(item => item.value > 0);
 
     const byStatus = [
@@ -426,26 +428,28 @@ export default function AdminMap() {
             </div>
 
             {/* Category Pills */}
-            <div className="flex gap-2 overflow-x-auto pb-0 pt-2 border-t border-gray-100">
-              {filters.map(filter => (
-                <Badge
-                  key={filter}
-                  variant={activeFilter === filter ? "default" : "outline"}
-                  className={`px-4 py-1.5 cursor-pointer transition-all ${activeFilter === filter
-                    ? 'bg-primary hover:bg-primary/90'
-                    : 'hover:bg-gray-100 text-gray-600 border-gray-300'
-                    }`}
-                  onClick={() => {
-                    setActiveFilter(filter);
-                    setSelectedIssue(null);
-                  }}
-                >
-                  {filter}
-                  <span className="ml-2 text-xs opacity-75">
-                    {filter === 'All' ? filteredIssues.length : filteredIssues.filter(i => i.category === filter).length}
-                  </span>
-                </Badge>
-              ))}
+            <div className="flex flex-wrap gap-2 pb-0 pt-2 border-t border-gray-100">
+              {filters
+                .filter(f => f.code === 'All' || baseFilteredIssues.some(i => i.category === f.code))
+                .map(filter => (
+                  <Badge
+                    key={filter.code}
+                    variant={activeFilter === filter.code ? "default" : "outline"}
+                    className={`px-4 py-1.5 cursor-pointer transition-all ${activeFilter === filter.code
+                      ? 'bg-primary hover:bg-primary/90'
+                      : 'hover:bg-gray-100 text-gray-600 border-gray-300'
+                      }`}
+                    onClick={() => {
+                      setActiveFilter(filter.code);
+                      setSelectedIssue(null);
+                    }}
+                  >
+                    {filter.name}
+                    <span className="ml-2 text-xs opacity-75">
+                      {filter.code === 'All' ? baseFilteredIssues.length : baseFilteredIssues.filter(i => i.category === filter.code).length}
+                    </span>
+                  </Badge>
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -560,6 +564,29 @@ export default function AdminMap() {
               )}
             </MapContainer>
           )}
+
+          {/* Map Legend */}
+          <div className="absolute bottom-6 right-4 z-[400] bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-lg border border-gray-200">
+            <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">Issue Status</h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: STATUS_COLORS.critical }}></div>
+                <span className="text-xs text-gray-600">Critical</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: STATUS_COLORS.in_progress }}></div>
+                <span className="text-xs text-gray-600">In Progress</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: STATUS_COLORS.submitted }}></div>
+                <span className="text-xs text-gray-600">Submitted</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ backgroundColor: STATUS_COLORS.resolved }}></div>
+                <span className="text-xs text-gray-600">Resolved</span>
+              </div>
+            </div>
+          </div>
 
           {/* Advanced Map Controls Overlay */}
           <div className="absolute top-4 left-4 z-[400] bg-white rounded-lg shadow-lg border border-gray-200">

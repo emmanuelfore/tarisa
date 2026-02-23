@@ -1,44 +1,27 @@
+process.env.DATABASE_URL = "postgresql://postgres.sdcmpmfcqmfzkeizvvlf:a8gCc2ZQ..Y7d.J@aws-1-eu-west-1.pooler.supabase.com:5432/postgres";
+import { storage } from "./server/storage";
+import { db } from "./server/db";
+import { citizens, issues } from "./shared/schema";
+import { count, eq } from "drizzle-orm";
 
-import 'dotenv/config';
-import { db } from './server/db';
-import { issues, wards } from './shared/schema';
-import { eq } from 'drizzle-orm';
+async function debug() {
+    console.log("--- Citizens ---");
+    const allCitizens = await db.select().from(citizens);
+    for (const c of allCitizens) {
+        const [issueCount] = await db.select({ val: count() }).from(issues).where(eq(issues.citizenId, c.id));
+        console.log(`Citizen: ${c.name} (${c.email}), ID: ${c.id}, Issues: ${issueCount.val}`);
+    }
 
-async function main() {
-    console.log("Checking DB Content...");
-
-    // 1. Check Issues
-    const allIssues = await db.select().from(issues);
-    console.log(`Total Issues: ${allIssues.length}`);
-    allIssues.forEach(i => {
-        console.log(`- [${i.id}] ${i.title} | Status: ${i.status} | WardId: ${i.wardId}`);
-    });
-
-    // 2. Check Wards
-    const allWards = await db.select().from(wards);
-    console.log(`\nTotal Wards: ${allWards.length}`);
-    allWards.forEach(w => console.log(`- [${w.id}] ${w.name} (${w.wardNumber})`));
-
-    // 3. Assign a ward to an issue if possible (for testing UI)
-    if (allIssues.length > 0 && allWards.length > 0) {
-        const targetIssue = allIssues[0];
-        const targetWard = allWards[0];
-
-        if (!targetIssue.wardId) {
-            console.log(`\nAssigning Issue ${targetIssue.id} to Ward ${targetWard.id}...`);
-            await db.update(issues)
-                .set({ wardId: targetWard.id })
-                .where(eq(issues.id, targetIssue.id));
-            console.log("Update complete.");
+    console.log("\n--- Issues without Valid Citizen ---");
+    const orphanIssues = await db.select().from(issues);
+    for (const i of orphanIssues) {
+        const [citizen] = await db.select().from(citizens).where(eq(citizens.id, i.citizenId));
+        if (!citizen) {
+            console.log(`Orphan Issue: ${i.title}, Tracking ID: ${i.trackingId}, CitizenID: ${i.citizenId}`);
         }
-    } else if (allWards.length === 0) {
-        console.log("\nNo wards found. Seeding a test ward...");
-        // Ideally I'd use storage.ts but direct DB is faster for debug script
-        // But I need localAuthority first. 
-        // Let's just note this.
     }
 
     process.exit(0);
 }
 
-main().catch(console.error);
+debug().catch(console.error);

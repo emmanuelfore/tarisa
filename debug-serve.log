@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-02-11T17:52:34.995Z",
+  "timestamp": "2026-02-19T08:27:31.213Z",
   "hasServe": true,
   "serveType": "array",
   "serveLength": 2,
   "hasSetup": true,
   "specInfo": "Civic App API",
-  "specPaths": 34
+  "specPaths": 32
 }

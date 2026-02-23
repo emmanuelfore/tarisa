@@ -32,7 +32,7 @@ import {
   ArrowLeft,
   MapPin,
   Calendar,
-  User,
+  User as UserIcon,
   MessageSquare,
   Paperclip,
   Send,
@@ -42,21 +42,17 @@ import {
   Printer,
   UserPlus,
   ArrowUpRight,
-  Loader2
+  Loader2,
+  Shield
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useRoute } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Issue, Department, Staff, Comment, Timeline } from "@shared/schema";
+import { Issue, Department, User, Comment, Timeline } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 
-const ESCALATION_LEVELS = [
-  { id: "L1", name: "Level 1: Ward Team", color: "bg-blue-100 text-blue-700" },
-  { id: "L2", name: "Level 2: District Office", color: "bg-purple-100 text-purple-700" },
-  { id: "L3", name: "Level 3: Town House HQ", color: "bg-orange-100 text-orange-700" },
-  { id: "L4", name: "Level 4: National Ministry", color: "bg-red-100 text-red-700" },
-];
+
 
 export default function AdminIssueDetail() {
   const [, params] = useRoute("/admin/reports/:id");
@@ -69,8 +65,8 @@ export default function AdminIssueDetail() {
   // Assignment Dialog State
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState("");
-  const [selectedLevel, setSelectedLevel] = useState("");
-  const [selectedStaff, setSelectedStaff] = useState("");
+  // const [selectedLevel, setSelectedLevel] = useState(""); // Removed escalation level logic
+  const [selectedUser, setSelectedUser] = useState("");
 
   // Queries
   const { data: issue, isLoading: isLoadingIssue } = useQuery<Issue>({
@@ -82,8 +78,8 @@ export default function AdminIssueDetail() {
     queryKey: ["/api/departments"],
   });
 
-  const { data: staffList = [] } = useQuery<Staff[]>({
-    queryKey: ["/api/staff"],
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
 
   const { data: comments = [] } = useQuery<Comment[]>({
@@ -131,8 +127,8 @@ export default function AdminIssueDetail() {
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/issues/${issueId}/assign`, {
         departmentId: parseInt(selectedDept) || null,
-        staffId: parseInt(selectedStaff) || null,
-        escalationLevel: selectedLevel || "L1",
+        userId: parseInt(selectedUser) || null,
+        // escalationLevel: selectedLevel || "L1", // Removed
       });
       return res.json();
     },
@@ -140,13 +136,26 @@ export default function AdminIssueDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/issues/${issueId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/issues/${issueId}/timeline`] });
       setAssignDialogOpen(false);
+      setAssignDialogOpen(false);
       toast({ title: "Issue Assigned", description: "The issue has been reassigned successfully." });
     },
   });
 
-  const availableStaff = useMemo(() => {
-    return staffList.filter(s => s.departmentId === (parseInt(selectedDept) || 0));
-  }, [selectedDept, staffList]);
+  const verifyMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/issues/${issueId}/verify`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/issues/${issueId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/issues/${issueId}/timeline`] });
+      toast({ title: "Issue Verified", description: "The issue has been verified and closed." });
+    },
+  });
+
+  const availableUsers = useMemo(() => {
+    return users.filter(u => u.departmentId === (parseInt(selectedDept) || 0));
+  }, [selectedDept, users]);
 
   if (isLoadingIssue) {
     return (
@@ -172,7 +181,7 @@ export default function AdminIssueDetail() {
   }
 
   const assignedDept = departments.find(d => d.id === issue.assignedDepartmentId);
-  const assignedStaffMember = staffList.find(s => s.id === issue.assignedStaffId);
+  const assignedUser = users.find(u => u.id === issue.assignedUserId);
 
   return (
     <AdminLayout>
@@ -194,12 +203,18 @@ export default function AdminIssueDetail() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => {
-              // Pre-fill dialog for escalation
-              setAssignDialogOpen(true);
-            }}>
-              <ArrowUpRight size={16} /> Escalate
-            </Button>
+            {/* Escalation Removed */}
+            {issue.status === 'resolved' && !issue.verifiedAt && (
+              <Button
+                variant="outline"
+                className="gap-2 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                onClick={() => verifyMutation.mutate()}
+                disabled={verifyMutation.isPending}
+              >
+                {verifyMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                Verify & Close
+              </Button>
+            )}
             <Button variant="outline" className="gap-2" onClick={() => setAssignDialogOpen(true)}>
               <UserPlus size={16} /> Reassign
             </Button>
@@ -418,7 +433,7 @@ export default function AdminIssueDetail() {
               <CardContent className="space-y-4">
                 <div className="flex items-start gap-3">
                   <div className="p-2 bg-gray-100 rounded-lg">
-                    <User size={20} className="text-gray-500" />
+                    <UserIcon size={20} className="text-gray-500" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">{assignedDept?.name || "Unassigned"}</p>
@@ -428,12 +443,12 @@ export default function AdminIssueDetail() {
                 <div className="flex items-start gap-3">
                   <Avatar className="h-9 w-9">
                     <AvatarFallback className="bg-primary/10 text-primary">
-                      {assignedStaffMember ? assignedStaffMember.name.substring(0, 2) : "?"}
+                      {assignedUser ? assignedUser.name.substring(0, 2) : "?"}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{assignedStaffMember?.name || "Unassigned"}</p>
-                    <p className="text-xs text-gray-500">Lead Staff</p>
+                    <p className="text-sm font-medium text-gray-900">{assignedUser?.name || "Unassigned"}</p>
+                    <p className="text-xs text-gray-500">Lead User</p>
                   </div>
                 </div>
                 <Button variant="outline" className="w-full text-xs" onClick={() => setAssignDialogOpen(true)}>Reassign Ticket</Button>
@@ -484,7 +499,7 @@ export default function AdminIssueDetail() {
               <label className="text-sm font-medium">Department / Authority</label>
               <Select value={selectedDept} onValueChange={(val) => {
                 setSelectedDept(val);
-                setSelectedStaff(""); // Reset staff when dept changes
+                setSelectedUser(""); // Reset user when dept changes
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select Department" />
@@ -504,32 +519,32 @@ export default function AdminIssueDetail() {
 
             <div className="grid gap-2">
               <label className="text-sm font-medium flex items-center justify-between">
-                <span>Assign Staff Member</span>
+                <span>Assign User</span>
                 <span className="text-xs text-gray-500 font-normal">(Optional)</span>
               </label>
               <Select
-                value={selectedStaff}
-                onValueChange={setSelectedStaff}
-                disabled={!selectedDept || availableStaff.length === 0}
+                value={selectedUser}
+                onValueChange={setSelectedUser}
+                disabled={!selectedDept || availableUsers.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={
                     !selectedDept ? "Select a department first" :
-                      availableStaff.length === 0 ? "No staff found for this department" :
-                        "Select Staff Member"
+                      availableUsers.length === 0 ? "No users found for this department" :
+                        "Select User"
                   } />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableStaff.map(staff => (
-                    <SelectItem key={staff.id} value={staff.id.toString()}>
+                  {availableUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
                       <div className="flex items-center gap-2">
                         <Avatar className="h-5 w-5">
                           <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
-                            {staff.name.split(' ').map(n => n[0]).join('')}
+                            {user.name.substring(0, 2)}
                           </AvatarFallback>
                         </Avatar>
-                        <span>{staff.name}</span>
-                        <span className="text-xs text-gray-400">({staff.role})</span>
+                        <span>{user.name}</span>
+                        <span className="text-xs text-gray-400">({user.role})</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -537,24 +552,6 @@ export default function AdminIssueDetail() {
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Escalation Level</label>
-              <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ESCALATION_LEVELS.map(level => (
-                    <SelectItem key={level.id} value={level.id}>
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`} />
-                        <span>{level.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
           <DialogFooter>

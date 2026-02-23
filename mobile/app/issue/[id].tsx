@@ -1,5 +1,5 @@
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
-import { View, Text, ScrollView, ActivityIndicator, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, Image, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,6 +60,17 @@ export default function IssueDetail() {
         }
     });
 
+    const handleAuthError = () => {
+        Alert.alert(
+            "Sign In Required",
+            "You need to be logged in to perform this action.",
+            [
+                { text: "Cancel", style: "cancel" },
+                { text: "Sign In", onPress: () => router.push('/(auth)/login') }
+            ]
+        );
+    };
+
     const upvoteMutation = useMutation({
         mutationFn: async () => {
             return await api.post(`/api/issues/${id}/upvote`);
@@ -69,6 +80,10 @@ export default function IssueDetail() {
             setError(null);
         },
         onError: (err: any) => {
+            if (err.response?.status === 401) {
+                handleAuthError();
+                return;
+            }
             const errorData = err.response?.data?.error;
             const message = typeof errorData === 'string'
                 ? errorData
@@ -89,6 +104,10 @@ export default function IssueDetail() {
             setError(null);
         },
         onError: (err: any) => {
+            if (err.response?.status === 401) {
+                handleAuthError();
+                return;
+            }
             const errorData = err.response?.data?.error;
             const message = typeof errorData === 'string'
                 ? errorData
@@ -145,149 +164,158 @@ export default function IssueDetail() {
                 </View>
             </SafeAreaView>
 
-            <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
-                {/* Map or Image Hero */}
-                {issue.coordinates ? (
-                    <View className="h-48 w-full relative">
-                        <MapView
-                            style={{ flex: 1 }}
-                            initialRegion={{
-                                latitude: parseFloat(issue.coordinates.split(',')[0]),
-                                longitude: parseFloat(issue.coordinates.split(',')[1]),
-                                latitudeDelta: 0.005,
-                                longitudeDelta: 0.005,
-                            }}
-                            scrollEnabled={false}
-                            zoomEnabled={false}
-                        >
-                            <Marker coordinate={{
-                                latitude: parseFloat(issue.coordinates.split(',')[0]),
-                                longitude: parseFloat(issue.coordinates.split(',')[1]),
-                            }} />
-                        </MapView>
-                        <View className="absolute bottom-4 left-4 bg-white/90 px-3 py-1.5 rounded-lg shadow-sm backdrop-blur-md flex-row items-center">
-                            <MapPin size={14} color="#4b5563" />
-                            <Text className="text-xs font-bold text-gray-700 ml-1">{issue.location}</Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                className="flex-1"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+                <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20 }}>
+                    {/* Map or Image Hero */}
+                    {issue.coordinates ? (
+                        <View className="h-48 w-full relative">
+                            <MapView
+                                style={{ flex: 1 }}
+                                initialRegion={{
+                                    latitude: parseFloat(issue.coordinates.split(',')[0]),
+                                    longitude: parseFloat(issue.coordinates.split(',')[1]),
+                                    latitudeDelta: 0.005,
+                                    longitudeDelta: 0.005,
+                                }}
+                                scrollEnabled={false}
+                                zoomEnabled={false}
+                            >
+                                <Marker coordinate={{
+                                    latitude: parseFloat(issue.coordinates.split(',')[0]),
+                                    longitude: parseFloat(issue.coordinates.split(',')[1]),
+                                }} />
+                            </MapView>
+                            <View className="absolute bottom-4 left-4 bg-white/90 px-3 py-1.5 rounded-lg shadow-sm backdrop-blur-md flex-row items-center">
+                                <MapPin size={14} color="#4b5563" />
+                                <Text className="text-xs font-bold text-gray-700 ml-1">{issue.location}</Text>
+                            </View>
                         </View>
-                    </View>
-                ) : (
-                    <View className="h-32 bg-gray-100 items-center justify-center">
-                        <Text className="text-gray-400">No Location Data</Text>
-                    </View>
-                )}
-
-                <View className="px-6 py-6">
-                    {/* Timestamp & Ward */}
-                    <Text className="text-gray-400 text-sm mb-4">
-                        {formatDistanceToNow(new Date(issue.createdAt))} ago • {issue.ward || 'Unknown Ward'}
-                    </Text>
-
-                    {/* Description */}
-                    <Text className="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Description</Text>
-                    <Text className="text-gray-800 text-base leading-relaxed mb-6">
-                        {issue.description}
-                    </Text>
-
-                    {/* Photos */}
-                    {issue.photos && issue.photos.length > 0 && (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6 -mx-6 px-6">
-                            {issue.photos.map((photo: string, index: number) => (
-                                <Image
-                                    key={index}
-                                    source={{ uri: photo.startsWith('http') ? photo : `${api.defaults.baseURL}${photo}` }}
-                                    className="w-64 h-48 rounded-xl mr-3 bg-gray-100 border border-gray-100"
-                                    resizeMode="cover"
-                                />
-                            ))}
-                        </ScrollView>
+                    ) : (
+                        <View className="h-32 bg-gray-100 items-center justify-center">
+                            <Text className="text-gray-400">No Location Data</Text>
+                        </View>
                     )}
 
-                    {/* Action Bar */}
-                    <View className="flex-row items-center justify-between border-y border-gray-100 py-4 mb-8">
-                        <TouchableOpacity
-                            className="flex-row items-center space-x-2"
-                            onPress={() => upvoteMutation.mutate()}
-                        >
-                            <ThumbsUp
-                                size={20}
-                                color={upvotes?.userUpvoted ? "#2563eb" : "#6b7280"}
-                                fill={upvotes?.userUpvoted ? "#2563eb" : "none"}
-                            />
-                            <Text className={`font-bold text-base ${upvotes?.userUpvoted ? 'text-blue-600' : 'text-gray-600'}`}>
-                                Upvote ({upvotes?.count || 0})
-                            </Text>
-                        </TouchableOpacity>
+                    <View className="px-6 py-6">
+                        {/* Timestamp & Ward */}
+                        <Text className="text-gray-400 text-sm mb-4">
+                            {formatDistanceToNow(new Date(issue.createdAt))} ago • {issue.ward || 'Unknown Ward'}
+                        </Text>
 
-                        <TouchableOpacity className="flex-row items-center space-x-2">
-                            <MessageSquare size={20} color="#6b7280" />
-                            <Text className="font-bold text-base text-gray-600">
-                                Comment ({comments?.length || 0})
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                        {/* Description */}
+                        <Text className="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Description</Text>
+                        <Text className="text-gray-800 text-base leading-relaxed mb-6">
+                            {issue.description}
+                        </Text>
 
-                    {/* Status Updates */}
-                    <Text className="text-lg font-bold text-gray-900 mb-4">Status Updates</Text>
-                    <View className="pl-4 border-l-2 border-gray-100 space-y-6 mb-8">
-                        {timeline?.map((event: any, i: number) => (
-                            <View key={i}>
-                                <Text className="text-xs font-bold text-gray-400 uppercase mb-1">
-                                    {event.type.replace('_', ' ')}
+                        {/* Photos */}
+                        {issue.photos && issue.photos.length > 0 && (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6 -mx-6 px-6">
+                                {issue.photos.map((photo: string, index: number) => (
+                                    <Image
+                                        key={index}
+                                        source={{ uri: photo.startsWith('http') ? photo : `${api.defaults.baseURL}${photo}` }}
+                                        className="w-64 h-48 rounded-xl mr-3 bg-gray-100 border border-gray-100"
+                                        resizeMode="cover"
+                                    />
+                                ))}
+                            </ScrollView>
+                        )}
+
+                        {/* Action Bar */}
+                        <View className="flex-row items-center justify-between border-y border-gray-100 py-4 mb-8">
+                            <TouchableOpacity
+                                className="flex-row items-center space-x-2"
+                                onPress={() => upvoteMutation.mutate()}
+                            >
+                                <ThumbsUp
+                                    size={20}
+                                    color={upvotes?.userUpvoted ? "#2563eb" : "#6b7280"}
+                                    fill={upvotes?.userUpvoted ? "#2563eb" : "none"}
+                                />
+                                <Text className={`font-bold text-base ${upvotes?.userUpvoted ? 'text-blue-600' : 'text-gray-600'}`}>
+                                    Upvote ({upvotes?.count || 0})
                                 </Text>
-                                <Text className="text-gray-400 text-xs mb-1">
-                                    • {formatDistanceToNow(new Date(event.createdAt || event.date))} ago
+                            </TouchableOpacity>
+
+                            <TouchableOpacity className="flex-row items-center space-x-2">
+                                <MessageSquare size={20} color="#6b7280" />
+                                <Text className="font-bold text-base text-gray-600">
+                                    Comment ({comments?.length || 0})
                                 </Text>
-                                <Text className="text-gray-800 font-medium">
-                                    {event.description || event.title}
-                                </Text>
-                            </View>
-                        ))}
-                        {/* Fallback Initial State */}
-                        <View>
-                            <Text className="text-xs font-bold text-gray-400 uppercase mb-1">SUBMITTED</Text>
-                            <Text className="text-gray-400 text-xs mb-1">• {formatDistanceToNow(new Date(issue.createdAt))} ago</Text>
-                            <Text className="text-gray-800 font-medium">Report submitted.</Text>
+                            </TouchableOpacity>
                         </View>
-                    </View>
 
-                    {/* Discussion */}
-                    <Text className="text-lg font-bold text-gray-900 mb-4">Discussion</Text>
-
-                    {comments?.length === 0 ? (
-                        <Text className="text-gray-400 italic mb-6">No comments yet. Be the first to discuss.</Text>
-                    ) : (
-                        <View className="space-y-4 mb-6">
-                            {comments?.map((comment: any) => (
-                                <View key={comment.id} className="bg-gray-50 p-3 rounded-lg">
-                                    <View className="flex-row justify-between mb-1">
-                                        <Text className="font-bold text-gray-900 text-xs">{comment.userName || 'User'}</Text>
-                                        <Text className="text-gray-400 text-xs">{formatDistanceToNow(new Date(comment.createdAt))} ago</Text>
-                                    </View>
-                                    <Text className="text-gray-700 text-sm">{comment.text}</Text>
+                        {/* Status Updates */}
+                        <Text className="text-lg font-bold text-gray-900 mb-4">Status Updates</Text>
+                        <View className="pl-4 border-l-2 border-gray-100 space-y-6 mb-8">
+                            {timeline?.map((event: any, i: number) => (
+                                <View key={i}>
+                                    <Text className="text-xs font-bold text-gray-400 uppercase mb-1">
+                                        {event.type.replace('_', ' ')}
+                                    </Text>
+                                    <Text className="text-gray-400 text-xs mb-1">
+                                        • {formatDistanceToNow(new Date(event.createdAt || event.date))} ago
+                                    </Text>
+                                    <Text className="text-gray-800 font-medium">
+                                        {event.description || event.title}
+                                    </Text>
                                 </View>
                             ))}
+                            {/* Fallback Initial State */}
+                            <View>
+                                <Text className="text-xs font-bold text-gray-400 uppercase mb-1">SUBMITTED</Text>
+                                <Text className="text-gray-400 text-xs mb-1">• {formatDistanceToNow(new Date(issue.createdAt))} ago</Text>
+                                <Text className="text-gray-800 font-medium">Report submitted.</Text>
+                            </View>
                         </View>
-                    )}
 
-                    {/* Error Message */}
-                    {error && (
-                        <View className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-4 flex-row items-start">
-                            <AlertCircle size={20} color="#dc2626" />
-                            <Text className="text-red-700 font-medium ml-3 flex-1">{error}</Text>
-                        </View>
-                    )}
+                        {/* Discussion */}
+                        <Text className="text-lg font-bold text-gray-900 mb-4">Discussion</Text>
 
-                    {/* Add Comment Input */}
+                        {comments?.length === 0 ? (
+                            <Text className="text-gray-400 italic mb-6">No comments yet. Be the first to discuss.</Text>
+                        ) : (
+                            <View className="space-y-4 mb-6">
+                                {comments?.map((comment: any) => (
+                                    <View key={comment.id} className="bg-gray-50 p-3 rounded-lg">
+                                        <View className="flex-row justify-between mb-1">
+                                            <Text className="font-bold text-gray-900 text-xs">{comment.userName || 'User'}</Text>
+                                            <Text className="text-gray-400 text-xs">{formatDistanceToNow(new Date(comment.createdAt))} ago</Text>
+                                        </View>
+                                        <Text className="text-gray-700 text-sm">{comment.text}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+
+                        {/* Error Message */}
+                        {error && (
+                            <View className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 mb-4 flex-row items-start">
+                                <AlertCircle size={20} color="#dc2626" />
+                                <Text className="text-red-700 font-medium ml-3 flex-1">{error}</Text>
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
+
+                {/* Add Comment Input - Fixed at bottom */}
+                <View className="px-4 py-3 border-t border-gray-100 bg-white">
                     <View className="flex-row items-center bg-gray-50 p-2 rounded-full border border-gray-200">
                         <TextInput
-                            className="flex-1 px-4 py-2 text-gray-900"
+                            className="flex-1 px-4 py-2 text-gray-900 max-h-24"
                             placeholder="Add a comment..."
                             value={commentText}
                             onChangeText={setCommentText}
+                            multiline
                             onSubmitEditing={() => commentText.trim() && commentMutation.mutate(commentText)}
                         />
                         <TouchableOpacity
-                            className="bg-blue-600 p-2 rounded-full"
+                            className="bg-blue-600 p-2 rounded-full ml-2"
                             onPress={() => commentText.trim() && commentMutation.mutate(commentText)}
                             disabled={commentMutation.isPending}
                         >
@@ -299,7 +327,7 @@ export default function IssueDetail() {
                         </TouchableOpacity>
                     </View>
                 </View>
-            </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 }

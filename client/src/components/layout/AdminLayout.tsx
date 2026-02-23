@@ -16,7 +16,8 @@ import {
   ChevronLeft,
   Menu,
   Building2,
-  Tag
+  Tag,
+  Smartphone
 } from "lucide-react";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -150,13 +151,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             {!isCollapsed && <span>Users & Roles</span>}
           </Link>
 
-          <Link href="/admin/staff" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive("/admin/staff")
-            ? "bg-primary/10 text-primary"
-            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            } ${isCollapsed ? "justify-center px-2" : ""}`}>
-            <Shield size={20} className="shrink-0" />
-            {!isCollapsed && <span>Staff</span>}
-          </Link>
 
           <Link href="/admin/broadcast" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive("/admin/broadcast")
             ? "bg-primary/10 text-primary"
@@ -180,6 +174,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             } ${isCollapsed ? "justify-center px-2" : ""}`}>
             <Settings size={20} className="shrink-0" />
             {!isCollapsed && <span>Settings</span>}
+          </Link>
+
+          <Link href="/admin/mobile-app" className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive("/admin/mobile-app")
+            ? "bg-primary/10 text-primary"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            } ${isCollapsed ? "justify-center px-2" : ""}`}>
+            <Smartphone size={20} className="shrink-0" />
+            {!isCollapsed && <span>Mobile App</span>}
           </Link>
         </nav>
 
