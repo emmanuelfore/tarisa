@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 // For Android Emulator, use 10.0.2.2 (redirects to host localhost)
 // For iOS, localhost works fine
 // For generic LAN access (physical device), check your machine's IP (e.g. 192.168.1.97)
-const LOCAL_IP = '192.168.8.122'; // Auto-detected LAN IP
+const LOCAL_IP = '212.90.121.97'; // External server IP
 
 export const BASE_URL = Platform.select({
     android: `http://${LOCAL_IP}:5000`, // Use LAN IP for physical device support

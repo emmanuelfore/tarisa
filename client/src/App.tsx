@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import appIcon from "@assets/generated_images/app_icon_for_tarisa.png";
 
 // Pages
+import Landing from "@/pages/Landing";
 import Login from "@/pages/auth/Login"; // Import Login
 import CitizenHome from "@/pages/citizen/Home";
 import CitizenMap from "@/pages/citizen/Map";
@@ -38,9 +39,7 @@ function Router() {
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/">
-        <Redirect to="/admin/dashboard" />
-      </Route>
+      <Route path="/" component={Landing} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />

@@ -145,9 +145,14 @@
   --warning: 36 100% 60%;
   --warning-foreground: 0 0% 100%;
 
-  --border: 0 0% 30%;
-  --input: 0 0% 30%;
-  --ring: 123 46% 48%;
+  --border: 0 0% 88%;
+  --input: 0 0% 88%;
+  --ring: 221 83% 53%;
+
+  /* Professional Light-Mode Tokens */
+  --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  --navy-primary: 221 83% 20%;
 }
 
 @layer base {
@@ -166,5 +171,31 @@
   h5,
   h6 {
     @apply font-heading font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .soft-glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm;
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .bg-navy {
+    background-color: hsl(var(--navy-primary));
+  }
+
+  .text-navy {
+    color: hsl(var(--navy-primary));
+  }
+
+  .rounded-primary {
+    border-radius: 2rem;
   }
 }

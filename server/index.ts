@@ -5,6 +5,7 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
 import path from "path";
+import cors from "cors";
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,6 +25,11 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+app.use(cors({
+  origin: true, // Allow all origins in development/external access
+  credentials: true,
+}));
 
 app.use(
   session({
