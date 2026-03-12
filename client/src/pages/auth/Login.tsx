@@ -100,13 +100,6 @@ export default function Login() {
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-gray-100 flex flex-col items-center gap-4">
-                    <p className="text-sm text-gray-500">
-                        Don't have an account?{" "}
-                        <Link href="/signup" className="text-primary font-medium hover:underline">
-                            Sign up
-                        </Link>
-                    </p>
-
                     <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full">
                         <ShieldCheck size={12} />
                         <span>Secure Official Portal</span>
