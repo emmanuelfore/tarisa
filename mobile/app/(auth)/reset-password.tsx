@@ -57,12 +57,12 @@ export default function ResetPasswordScreen() {
                 </View>
 
                 <View>
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Reset Token</Text>
+                    <Text className="text-sm font-medium text-gray-700 mb-1">Reset Code</Text>
                     <View className="flex-row items-center border border-gray-300 rounded-lg h-12 px-4 bg-white">
                         <Key size={20} color="#9ca3af" />
                         <TextInput
                             className="flex-1 ml-3 text-gray-900"
-                            placeholder="123456"
+                            placeholder="Enter 6-digit code"
                             value={token}
                             onChangeText={setToken}
                             keyboardType="number-pad"

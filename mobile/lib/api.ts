@@ -31,7 +31,11 @@ api.interceptors.request.use(async config => {
 
     const cookie = await getSessionCookie();
     if (cookie) {
-        config.headers.Cookie = cookie;
+        config.headers['Cookie'] = cookie;
+        config.headers['X-Session-ID'] = cookie; // Custom header for mobile reliability
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url} - Attaching session ID: ${cookie.substring(0, 15)}...`);
+    } else {
+        console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url} - No session cookie found`);
     }
 
     return config;
@@ -46,12 +50,14 @@ api.interceptors.response.use(async response => {
     const endTime = new Date();
     const duration = endTime.getTime() - startTime.getTime();
 
-    console.log(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
-
     // Save session cookie if present
-    if (response.headers['set-cookie']) {
+    const setCookie = response.headers['set-cookie'] || response.headers['Set-Cookie'];
+    if (setCookie) {
+        console.log(`[API Response] ${response.config.method?.toUpperCase()} ${response.config.url} - set-cookie header found`);
         await saveSessionCookie(response.headers);
     }
+
+    console.log(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
 
     return response;
 }, error => {

@@ -6,8 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Mail, Lock, UserCircle, AlertCircle } from 'lucide-react-native';
 
+import { useAuth } from '../../lib/AuthContext';
+
 export default function Login() {
     const router = useRouter();
+    const { login } = useAuth();
     const [isAdmin, setIsAdmin] = useState(false);
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
@@ -33,11 +36,14 @@ export default function Login() {
 
         try {
             setLoading(true);
+            let response;
             if (isAdmin) {
-                await api.post('/api/auth/login', { username, password });
+                response = await api.post('/api/auth/login', { username, password });
             } else {
-                await api.post('/api/auth/citizen/login', { email, password });
+                response = await api.post('/api/auth/citizen/login', { email, password });
             }
+            
+            await login(response.data.user);
             router.replace('/(protected)/home');
         } catch (error: any) {
             console.log("Login Error:", error);

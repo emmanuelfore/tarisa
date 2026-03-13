@@ -40,7 +40,7 @@ export default function ForgotPasswordScreen() {
                     <ArrowLeft size={24} color="#1f2937" />
                 </TouchableOpacity>
                 <Text className="text-3xl font-bold text-gray-900">Forgot Password?</Text>
-                <Text className="text-gray-500 mt-2">Enter your email address to receive a reset token.</Text>
+                <Text className="text-gray-500 mt-2">Enter your email address to receive a reset code.</Text>
             </View>
 
             <View className="space-y-4">

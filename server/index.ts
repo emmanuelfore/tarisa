@@ -31,6 +31,14 @@ app.use(cors({
   credentials: true,
 }));
 
+app.use((req, res, next) => {
+  const sessionId = req.headers['x-session-id'] || req.headers['X-Session-ID'];
+  if (sessionId) {
+    req.headers.cookie = sessionId as string;
+  }
+  next();
+});
+
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "tarisa-secret-key-change-in-production",
@@ -69,6 +77,12 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (requestPath.startsWith("/api")) {
       let logLine = `${req.method} ${requestPath} ${res.statusCode} in ${duration}ms`;
+      
+      // Log session and cookie info for debugging
+      const sessionId = req.sessionID;
+      const cookieHeader = req.headers.cookie || req.headers.Cookie;
+      logLine += ` [SID: ${sessionId?.substring(0, 8)}] [Cookie: ${cookieHeader ? 'Present' : 'Missing'}]`;
+
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }

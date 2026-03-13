@@ -15,35 +15,26 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
+import { AuthProvider } from '../lib/AuthContext';
+
 export default function RootLayout() {
     useEffect(() => {
         // Hide splash screen immediately as requested
         SplashScreen.hideAsync();
-
-        /* Push notifications disabled for now
-        registerForPushNotificationsAsync().then(token => {
-            if (token) console.log("Push Token Registered:", token);
-        });
-
-        // Handle notifications received while app is foregrounded
-        const subscription = Notifications.addNotificationReceivedListener(notification => {
-            console.log("Notification Received:", notification);
-        });
-
-        return () => subscription.remove();
-        */
     }, []);
 
     return (
         <QueryClientProvider client={queryClient}>
-            <SafeAreaProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(protected)" />
-                </Stack>
-                <StatusBar style="auto" />
-            </SafeAreaProvider>
+            <AuthProvider>
+                <SafeAreaProvider>
+                    <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="index" />
+                        <Stack.Screen name="(auth)" />
+                        <Stack.Screen name="(protected)" />
+                    </Stack>
+                    <StatusBar style="auto" />
+                </SafeAreaProvider>
+            </AuthProvider>
         </QueryClientProvider>
     );
 }

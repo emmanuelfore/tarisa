@@ -80,6 +80,7 @@ import { db } from "./db";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
 import { resolveCoordinates } from "./services/location";
 import { z } from "zod";
+import { supabase } from "./lib/supabase";
 
 const SALT_ROUNDS = 8; // Lowered from 10 to speed up login
 
@@ -520,21 +521,24 @@ export async function registerRoutes(
       const { email } = req.body;
       const citizen = await storage.getCitizenByEmail(email);
       if (!citizen) {
-        // Return 200 even if not found to prevent enumeration
-        return res.json({ message: "If account exists, reset instructions sent." });
+         // Return 200 even if not found to prevent enumeration
+         return res.json({ message: "If account exists, reset instructions sent." });
       }
 
-      // Generate simple 6-digit token for MVP
-      const token = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiry = new Date(Date.now() + 3600000); // 1 hour
-
-      await storage.setResetToken(email, token, expiry);
-
-      // In production, send email here. For MVP, log it.
-      console.log(`[AUTH] Reset Token for ${email}: ${token}`);
+      console.log(`[AUTH] Requesting password reset for ${email} via Supabase`);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      
+      if (error) {
+        console.error("[SUPABASE AUTH ERROR]", error);
+        // If user doesn't exist in Supabase yet, we might need to handle it.
+        // For now, let's assume users are synced or exist.
+        return res.status(error.status || 500).json({ error: error.message });
+      }
 
       res.json({ message: "If account exists, reset instructions sent." });
     } catch (error) {
+      console.error("[AUTH ERROR]", error);
       res.status(500).json({ error: "Failed to process request" });
     }
   });
@@ -542,17 +546,37 @@ export async function registerRoutes(
   app.post("/api/auth/reset-password", async (req, res) => {
     try {
       const { email, token, newPassword } = req.body;
-      const citizen = await storage.getCitizenByEmail(email);
+      
+      console.log(`[AUTH] Verifying reset OTP for ${email}`);
+      
+      // 1. Verify the OTP/Token
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'recovery'
+      });
 
-      if (!citizen || citizen.resetToken !== token || !citizen.resetTokenExpiry || new Date() > citizen.resetTokenExpiry) {
-        return res.status(400).json({ error: "Invalid or expired token" });
+      if (verifyError) {
+        return res.status(400).json({ error: verifyError.message });
       }
 
+      // 2. Update the password in Supabase
+      // The session is automatically established after verifyOtp
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        return res.status(400).json({ error: updateError.message });
+      }
+
+      // 3. Update the password in local DB (to stay in sync)
       const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
       await storage.updatePassword(email, hashedPassword);
 
       res.json({ message: "Password updated successfully" });
     } catch (error) {
+      console.error("[AUTH ERROR]", error);
       res.status(500).json({ error: "Failed to reset password" });
     }
   });
@@ -1781,9 +1805,11 @@ export async function registerRoutes(
   app.post("/api/issues/:id/upvote", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      if (!req.session.userId) return res.status(401).json({ error: "Unauthorized" });
+      const userId = req.session.citizenId || req.session.userId;
+      const userType = req.session.citizenId ? 'citizen' : (req.session.userRole || 'citizen');
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-      const result = await storage.toggleUpvote(id, req.session.userId, req.session.userRole || 'citizen');
+      const result = await storage.toggleUpvote(id, userId, userType);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: "Failed to toggle upvote" });
@@ -2094,24 +2120,15 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/issues/:id/upvote", requireAuth, async (req, res) => {
-    try {
-      const issueId = parseInt(req.params.id);
-      const userId = req.session.userId!;
-      // Assuming citizen role
-      const result = await storage.toggleUpvote(issueId, userId, "citizen");
-      res.json(result);
-    } catch (e) {
-      res.status(500).json({ error: "Failed to toggle upvote" });
-    }
-  });
+  // Note: Upvote POST is registered above at /api/issues/:id/upvote
 
   app.get("/api/issues/:id/upvotes", async (req, res) => {
     try {
       const issueId = parseInt(req.params.id);
       const count = await storage.getUpvoteCount(issueId);
-      const userUpvoted = req.session.userId
-        ? await storage.hasUserUpvoted(issueId, req.session.userId)
+      const currentUserId = req.session.citizenId || req.session.userId;
+      const userUpvoted = currentUserId
+        ? await storage.hasUserUpvoted(issueId, currentUserId)
         : false;
       res.json({ count, userUpvoted });
     } catch (e) {

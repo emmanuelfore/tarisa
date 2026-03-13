@@ -2,23 +2,25 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../lib/api';
 import { useRouter } from 'expo-router';
-import { LogOut, User, Award, Shield, FileText, Settings, ChevronRight, UserCircle } from 'lucide-react-native';
+import { LogOut, Award, Shield, FileText, Settings, ChevronRight, UserCircle } from 'lucide-react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { clearSessionCookie } from '../../lib/auth-storage';
+import { useAuth } from '../../lib/AuthContext';
 
 export default function ProfileScreen() {
+    const { user: authUser, logout: authLogout } = useAuth();
     const queryClient = useQueryClient();
     const router = useRouter();
 
     const { data: user, isLoading } = useQuery({
         queryKey: ['user-me'],
+        initialData: authUser,
         queryFn: async () => {
             try {
                 const res = await api.get('/api/user');
                 return res.data;
             } catch (e) {
                 console.log(e);
-                return null;
+                return authUser; // Fallback to context user if API fails
             }
         }
     });
@@ -26,13 +28,13 @@ export default function ProfileScreen() {
     const handleLogout = async () => {
         try {
             await api.post('/api/auth/logout');
-            await clearSessionCookie(); // Clear manual cookie
-            queryClient.clear(); // Clear all data from cache
+            await authLogout();
+            queryClient.clear();
             Alert.alert('Logged out', 'See you soon!');
             router.replace('/(auth)/login');
         } catch (error) {
-            await clearSessionCookie(); // Ensure clear even on error
-            queryClient.clear(); // Ensure clear even on error
+            await authLogout();
+            queryClient.clear();
             router.replace('/(auth)/login');
         }
     };
