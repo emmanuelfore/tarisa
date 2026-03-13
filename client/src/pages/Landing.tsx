@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+  "lucide-react";
 import { 
   Shield, 
   CheckCircle2, 
@@ -9,11 +10,15 @@ import {
   Cpu, 
   Globe,
   MessageCircle,
-  Clock
+  Clock,
+  Download,
+  Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
+import { QRCodeSVG } from "qrcode.react";
+import { useState, useEffect } from "react";
 
 export default function Landing() {
   const containerVariants = {
@@ -28,6 +33,12 @@ export default function Landing() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 }
   };
+
+  const [downloadUrl, setDownloadUrl] = useState("");
+
+  useEffect(() => {
+    setDownloadUrl(`${window.location.origin}/api/download/apk`);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#fcfcfd] text-[#1a1a1b] font-sans selection:bg-primary/20">
@@ -274,6 +285,58 @@ export default function Landing() {
                     </Button>
                   </Link>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Download Section */}
+        <section id="download" className="py-24 bg-gray-50/30 border-y border-gray-100/50">
+          <div className="container mx-auto px-6">
+            <div className="grid lg:grid-cols-2 gap-16 items-center">
+              <div className="space-y-8">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-primary text-xs font-black uppercase tracking-widest border border-blue-100">
+                  <Smartphone className="w-4 h-4" />
+                  Mobile Accessibility
+                </div>
+                <h2 className="text-4xl lg:text-5xl font-black text-[#0a1b3d] leading-tight">
+                  The Power of <br />
+                  <span className="text-primary italic">Tarisa in Your Pocket.</span>
+                </h2>
+                <p className="text-lg text-gray-500 font-medium leading-relaxed max-w-lg">
+                  Report infrastructure issues instantly from the field. Our mobile application allows for real-time reporting with high-resolution photo proof and geo-tagging.
+                </p>
+                <div className="flex flex-wrap gap-4 pt-4">
+                  <a href="/api/download/apk" download="tarisa-app.apk">
+                    <Button size="lg" className="h-14 px-8 text-base bg-[#0a1b3d] hover:bg-[#142d5c] text-white shadow-xl shadow-blue-200 font-bold uppercase tracking-wider text-xs gap-2">
+                      <Download className="w-5 h-5" />
+                      Download APK
+                    </Button>
+                  </a>
+                  <Link href="/download">
+                    <Button size="lg" variant="outline" className="h-14 px-8 text-base border-gray-200 text-gray-700 font-bold hover:bg-gray-50 uppercase tracking-wider text-xs gap-2">
+                       Scan QR Code
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="relative group">
+                <div className="absolute -inset-4 bg-primary/5 rounded-[48px] blur-2xl group-hover:bg-primary/10 transition-colors" />
+                <Card className="relative border-none bg-white rounded-[40px] shadow-soft overflow-hidden p-8 flex flex-col md:row items-center gap-8 border border-gray-50">
+                  <div className="bg-gray-50 p-4 rounded-3xl shadow-inner shrink-0 leading-none">
+                    {downloadUrl ? (
+                      <QRCodeSVG value={downloadUrl} size={150} level="M" />
+                    ) : (
+                      <div className="w-[150px] h-[150px] bg-gray-100 animate-pulse rounded-2xl" />
+                    )}
+                  </div>
+                  <div className="space-y-2 text-center md:text-left">
+                    <div className="text-xs font-black text-primary uppercase tracking-widest">Instant Install</div>
+                    <div className="text-xl font-bold text-[#0a1b3d]">Quick QR Access</div>
+                    <p className="text-sm text-gray-400 font-medium">Scan the code with your camera to download the Android package directly.</p>
+                  </div>
+                </Card>
               </div>
             </div>
           </div>

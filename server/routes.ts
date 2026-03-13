@@ -2543,5 +2543,20 @@ export async function registerRoutes(
     }
   });
 
+  // ============ APK DOWNLOAD ROUTE ============
+  app.get("/api/download/apk", (req, res) => {
+    const apkPath = path.join(process.cwd(), "application-c632019f-6bb2-4ae4-bd44-ae8ef9b99d46.apk");
+    
+    if (!fs.existsSync(apkPath)) {
+      return res.status(404).json({ error: "APK file not found" });
+    }
+
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    res.setHeader("Content-Disposition", 'attachment; filename="tarisa-app.apk"');
+    
+    const fileStream = fs.createReadStream(apkPath);
+    fileStream.pipe(res);
+  });
+
   return httpServer;
 }

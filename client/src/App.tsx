@@ -34,6 +34,7 @@ import AdminMobileApp from "@/pages/admin/MobileApp";
 import Signup from "@/pages/auth/Signup";
 import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
+import DownloadApp from "@/pages/DownloadApp";
 
 function Router() {
   return (
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/download" component={DownloadApp} />
 
       {/* Citizen Routes - Protected */}
       <Route path="/citizen/home">
