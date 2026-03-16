@@ -3,17 +3,20 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator } from 'react
 import { Stack, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Clock, CheckCircle, AlertCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MyReportsScreen() {
     const router = useRouter();
+    const { user } = useAuth();
 
     const { data: issues, isLoading, error } = useQuery({
         queryKey: ['my-issues-full'],
+        enabled: !!user,
         queryFn: async () => {
-            const res = await api.get('/api/issues/my'); // Uses existing endpoint
+            const res = await api.get('/api/issues/my');
             return res.data;
         }
     });
@@ -21,8 +24,8 @@ export default function MyReportsScreen() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'resolved': return 'bg-green-100 text-green-700';
-            case 'in_progress': return 'bg-blue-100 text-blue-700';
-            default: return 'bg-yellow-100 text-yellow-700';
+            case 'in_progress': return 'bg-orange-100 text-orange-700';
+            default: return 'bg-slate-100 text-slate-700';
         }
     };
 
@@ -56,7 +59,7 @@ export default function MyReportsScreen() {
 
     return (
         <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-            <Stack.Screen options={{ headerShown: false }} />
+
 
             {/* Header */}
             <View className="px-6 py-4 bg-white border-b border-gray-200 flex-row items-center">
@@ -71,7 +74,7 @@ export default function MyReportsScreen() {
 
             {isLoading ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#2563eb" />
+                    <ActivityIndicator size="large" color="#ea580c" />
                 </View>
             ) : issues?.length === 0 ? (
                 <View className="flex-1 items-center justify-center px-10">

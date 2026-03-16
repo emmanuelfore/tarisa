@@ -87,7 +87,7 @@ export default function ResetPasswordScreen() {
                 <TouchableOpacity
                     onPress={handleReset}
                     disabled={loading}
-                    className="h-12 bg-blue-600 rounded-lg justify-center items-center mt-4"
+                    className="h-12 bg-orange-600 rounded-lg justify-center items-center mt-4"
                 >
                     {loading ? (
                         <ActivityIndicator color="white" />

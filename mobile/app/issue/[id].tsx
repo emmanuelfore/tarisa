@@ -121,7 +121,7 @@ export default function IssueDetail() {
     if (isLoading) {
         return (
             <View className="flex-1 justify-center items-center bg-white">
-                <ActivityIndicator size="large" color="#2563eb" />
+                <ActivityIndicator size="large" color="#ea580c" />
             </View>
         );
     }
@@ -156,8 +156,8 @@ export default function IssueDetail() {
                             <Text className="font-bold text-gray-900 text-lg" numberOfLines={1}>{issue.trackingId}</Text>
                         </View>
                     </View>
-                    <View className={`px-2 py-1 rounded text-xs font-bold ${isResolved ? 'bg-green-100' : 'bg-blue-100'}`}>
-                        <Text className={`text-xs font-bold uppercase ${isResolved ? 'text-green-700' : 'text-blue-700'}`}>
+                    <View className={`px-2 py-1 rounded text-xs font-bold ${isResolved ? 'bg-green-100' : 'bg-orange-100'}`}>
+                        <Text className={`text-xs font-bold uppercase ${isResolved ? 'text-green-700' : 'text-orange-700'}`}>
                             {issue.status.replace('_', ' ')}
                         </Text>
                     </View>
@@ -231,14 +231,20 @@ export default function IssueDetail() {
                             <TouchableOpacity
                                 className="flex-row items-center space-x-2"
                                 onPress={() => upvoteMutation.mutate()}
+                                disabled={upvoteMutation.isPending}
+                                style={{ opacity: upvoteMutation.isPending ? 0.5 : 1 }}
                             >
-                                <ThumbsUp
-                                    size={20}
-                                    color={upvotes?.userUpvoted ? "#2563eb" : "#6b7280"}
-                                    fill={upvotes?.userUpvoted ? "#2563eb" : "none"}
-                                />
-                                <Text className={`font-bold text-base ${upvotes?.userUpvoted ? 'text-blue-600' : 'text-gray-600'}`}>
-                                    Upvote ({upvotes?.count || 0})
+                                {upvoteMutation.isPending ? (
+                                    <ActivityIndicator size={20} color="#ea580c" />
+                                ) : (
+                                    <ThumbsUp
+                                        size={20}
+                                        color={upvotes?.userUpvoted ? "#ea580c" : "#6b7280"}
+                                        fill={upvotes?.userUpvoted ? "#ea580c" : "none"}
+                                    />
+                                )}
+                                <Text className={`font-bold text-base ${upvotes?.userUpvoted ? 'text-orange-600' : 'text-gray-600'}`}>
+                                    {upvoteMutation.isPending ? 'Upvoting...' : `Upvote (${upvotes?.count || 0})`}
                                 </Text>
                             </TouchableOpacity>
 
@@ -315,7 +321,7 @@ export default function IssueDetail() {
                             onSubmitEditing={() => commentText.trim() && commentMutation.mutate(commentText)}
                         />
                         <TouchableOpacity
-                            className="bg-blue-600 p-2 rounded-full ml-2"
+                            className="bg-orange-600 p-2 rounded-full ml-2"
                             onPress={() => commentText.trim() && commentMutation.mutate(commentText)}
                             disabled={commentMutation.isPending}
                         >

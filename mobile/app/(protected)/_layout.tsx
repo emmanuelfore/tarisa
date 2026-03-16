@@ -12,11 +12,11 @@ export default function ProtectedLayout() {
                     tabBarStyle: {
                         borderTopWidth: 1,
                         borderTopColor: '#f3f4f6',
-                        height: Platform.OS === 'android' ? 80 : 65,
-                        paddingBottom: Platform.OS === 'android' ? 20 : 10,
+                        height: Platform.OS === 'android' ? 100 : 65,
+                        paddingBottom: Platform.OS === 'android' ? 40 : 10,
                         paddingTop: 10,
                     },
-                    tabBarActiveTintColor: '#2563eb',
+                    tabBarActiveTintColor: '#ea580c',
                     tabBarInactiveTintColor: '#9ca3af',
                     tabBarLabelStyle: {
                         fontSize: 12,
@@ -43,7 +43,7 @@ export default function ProtectedLayout() {
                     options={{
                         tabBarLabel: '',
                         tabBarIcon: ({ color }) => (
-                            <View className="bg-blue-600 p-3 rounded-full -mt-8 shadow-lg border-4 border-white">
+                            <View className="bg-orange-600 p-3 rounded-full -mt-8 shadow-xl border-4 border-white">
                                 <Plus size={28} color="white" />
                             </View>
                         ),

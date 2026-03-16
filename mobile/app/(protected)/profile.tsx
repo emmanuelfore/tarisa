@@ -14,6 +14,7 @@ export default function ProfileScreen() {
     const { data: user, isLoading } = useQuery({
         queryKey: ['user-me'],
         initialData: authUser,
+        enabled: !!authUser,
         queryFn: async () => {
             try {
                 const res = await api.get('/api/user');
@@ -41,6 +42,7 @@ export default function ProfileScreen() {
 
     const { data: stats } = useQuery({
         queryKey: ['user-stats'],
+        enabled: !!authUser,
         queryFn: async () => {
             const res = await api.get('/api/user/stats');
             return res.data;
@@ -59,7 +61,7 @@ export default function ProfileScreen() {
                 </Text>
                 <View className="w-full max-w-xs">
                     <TouchableOpacity
-                        className="w-full bg-blue-600 rounded-xl py-4 items-center shadow-lg"
+                        className="w-full bg-orange-600 rounded-xl py-4 items-center shadow-lg"
                         onPress={() => router.replace('/(auth)/login')}
                         activeOpacity={0.8}
                     >
@@ -73,14 +75,14 @@ export default function ProfileScreen() {
     return (
         <SafeAreaView className="flex-1 bg-gray-50">
             <View className="bg-white px-6 py-10 items-center border-b border-gray-100">
-                <View className="w-24 h-24 bg-blue-50 rounded-full items-center justify-center mb-4 border-2 border-blue-100">
-                    <UserCircle size={56} color="#2563eb" />
+                <View className="w-24 h-24 bg-orange-50 rounded-full items-center justify-center mb-4 border-2 border-orange-100">
+                    <UserCircle size={56} color="#ea580c" />
                 </View>
                 <Text className="text-2xl font-bold text-gray-900">{user?.name || 'Citizen'}</Text>
                 <Text className="text-gray-500 mb-2">{user?.email || 'citizen@tarisa.gov.zw'}</Text>
-                <View className="flex-row items-center bg-blue-50 px-3 py-1 rounded-full">
-                    <Shield size={12} color="#2563eb" />
-                    <Text className="text-blue-700 font-bold text-[10px] uppercase ml-1">{user?.role || 'Citizen'}</Text>
+                <View className="flex-row items-center bg-orange-50 px-3 py-1 rounded-full">
+                    <Shield size={12} color="#ea580c" />
+                    <Text className="text-orange-700 font-bold text-[10px] uppercase ml-1">{user?.role || 'Citizen'}</Text>
                 </View>
             </View>
 
@@ -93,7 +95,7 @@ export default function ProfileScreen() {
                         <Text className="text-gray-500 text-xs font-medium">Civic Points</Text>
                     </View>
                     <View className="bg-white flex-1 p-5 rounded-3xl border border-gray-100 shadow-sm items-center">
-                        <FileText size={32} color="#2563eb" />
+                        <FileText size={32} color="#ea580c" />
                         <Text className="text-2xl font-bold text-gray-900 mt-2">{stats?.totalReports || 0}</Text>
                         <Text className="text-gray-500 text-xs font-medium">Reports</Text>
                     </View>
@@ -107,8 +109,8 @@ export default function ProfileScreen() {
                         onPress={() => router.push('/(protected)/profile/edit')}
                         className="bg-white flex-row items-center p-5 rounded-3xl border border-gray-100 shadow-sm mb-3"
                     >
-                        <View className="w-10 h-10 bg-blue-50 rounded-2xl items-center justify-center">
-                            <Settings size={20} color="#2563eb" />
+                        <View className="w-10 h-10 bg-orange-50 rounded-2xl items-center justify-center">
+                            <Settings size={20} color="#ea580c" />
                         </View>
                         <View className="ml-4 flex-1">
                             <Text className="font-bold text-gray-900 text-sm">Edit Profile</Text>

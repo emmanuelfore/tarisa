@@ -527,6 +527,14 @@ export async function registerRoutes(
 
       console.log(`[AUTH] Requesting password reset for ${email} via Supabase`);
       
+      // Ensure user exists in Supabase. Supabase will safely return an error if they already exist.
+      // We generate a long random password since it's only meant to initialize the account.
+      // They will reset it via the OTP immediately.
+      await supabase.auth.signUp({
+        email: email,
+        password: Math.random().toString(36).slice(-15) + 'A1!'
+      });
+
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       
       if (error) {

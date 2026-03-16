@@ -473,18 +473,14 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select({
         ...getTableColumns(issues),
-        /*
-          upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
-          comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
-        */
+        upvotes: sql<number>`count(distinct ${upvotes.id})`.as('upvotes'),
+        comments: sql<number>`count(distinct ${comments.id})`.as('comments'),
       })
       .from(issues)
-      /*
       .leftJoin(upvotes, eq(issues.id, upvotes.issueId))
       .leftJoin(comments, eq(issues.id, comments.issueId))
-      */
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      // .groupBy(issues.id)
+      .groupBy(issues.id)
       .orderBy(desc(issues.createdAt));
 
     return result as any;

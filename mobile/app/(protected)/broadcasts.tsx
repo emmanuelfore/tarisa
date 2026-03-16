@@ -12,6 +12,7 @@ export default function BroadcastsScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
+    const [expandedItemKeys, setExpandedItemKeys] = useState<Set<string>>(new Set());
 
     const { data: broadcasts, isLoading: loadingBroadcasts, refetch: refetchBroadcasts } = useQuery({
         queryKey: ['broadcasts'],
@@ -59,7 +60,7 @@ export default function BroadcastsScreen() {
             switch (item.type) {
                 case 'alert': return <AlertTriangle size={20} color="#dc2626" />;
                 case 'success': return <CheckCircle size={20} color="#16a34a" />;
-                default: return <Megaphone size={20} color="#2563eb" />;
+                default: return <Megaphone size={20} color="#ea580c" />;
             }
         }
         // Notifications
@@ -67,7 +68,7 @@ export default function BroadcastsScreen() {
             case 'success': return <CheckCircle size={20} color="#16a34a" />;
             case 'warning': return <AlertTriangle size={20} color="#f59e0b" />;
             case 'error': return <AlertTriangle size={20} color="#dc2626" />;
-            default: return <MessageSquare size={20} color="#2563eb" />;
+            default: return <MessageSquare size={20} color="#ea580c" />;
         }
     };
 
@@ -80,16 +81,28 @@ export default function BroadcastsScreen() {
             case 'error': return 'bg-red-50 border-red-100';
             case 'warning': return 'bg-yellow-50 border-yellow-100';
             case 'success': return 'bg-green-50 border-green-100';
-            default: return 'bg-blue-50 border-blue-100';
+            default: return 'bg-orange-50 border-orange-100';
         }
     };
 
     const handlePress = (item: any) => {
+        const key = `${item.itemType}-${item.id}`;
+        
+        // Toggle expansion
+        setExpandedItemKeys(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(key)) {
+                newSet.delete(key);
+            } else {
+                newSet.add(key);
+            }
+            return newSet;
+        });
+
+        // Mark as read if notification
         if (item.itemType === 'notification' && !item.read) {
             markReadMutation.mutate(item.id);
         }
-        // If there's a related issue or broadcast detail, navigate there
-        // For now, just mark as read
     };
 
     return (
@@ -99,8 +112,8 @@ export default function BroadcastsScreen() {
                     <Text className="text-2xl font-bold text-gray-900">Updates</Text>
                     <Text className="text-xs text-gray-500">Community & personal news</Text>
                 </View>
-                <View className="bg-blue-50 p-2 rounded-full">
-                    <BellRing size={20} color="#2563eb" />
+                <View className="bg-orange-50 p-2 rounded-full">
+                    <BellRing size={20} color="#ea580c" />
                 </View>
             </View>
 
@@ -119,9 +132,13 @@ export default function BroadcastsScreen() {
                         <Text className="text-gray-500 mt-4 text-center">No updates at the moment.</Text>
                     </View>
                 ) : (
-                    unifiedUpdates.map((item: any, index: number) => (
+                    unifiedUpdates.map((item: any, index: number) => {
+                        const itemKey = `${item.itemType}-${item.id}-${index}`;
+                        const isExpanded = expandedItemKeys.has(`${item.itemType}-${item.id}`);
+                        
+                        return (
                         <TouchableOpacity
-                            key={`${item.itemType}-${item.id}-${index}`}
+                            key={itemKey}
                             onPress={() => handlePress(item)}
                             className={clsx(
                                 "p-5 rounded-3xl mb-4 border shadow-sm",
@@ -153,16 +170,21 @@ export default function BroadcastsScreen() {
                                 </View>
                             </View>
 
-                            <Text className="text-gray-600 leading-6 text-sm mb-2">
+                            <Text 
+                                className="text-gray-600 leading-6 text-sm mb-2"
+                                numberOfLines={isExpanded ? undefined : 2}
+                            >
                                 {item.message}
                             </Text>
 
                             <View className="flex-row items-center justify-end mt-2">
-                                <Text className="text-xs font-bold text-blue-600 mr-1">View details</Text>
-                                <ArrowRight size={14} color="#2563eb" />
+                                <Text className="text-xs font-bold text-orange-600 mr-1">
+                                    {isExpanded ? 'Show less' : 'View details'}
+                                </Text>
+                                <ArrowRight size={14} color="#ea580c" style={{ transform: [{ rotate: isExpanded ? '-90deg' : '0deg' }] }} />
                             </View>
                         </TouchableOpacity>
-                    ))
+                    )})
                 )}
                 <View className="h-10" />
             </ScrollView>

@@ -1,23 +1,39 @@
-import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/AuthContext';
 import {
     FileText, Award, CheckCircle, ArrowRight, PlusCircle,
     Users, Bell, MapPin, Clock, Sparkles,
     LayoutDashboard, ChevronRight, Zap, AlertTriangle,
-    ThumbsUp, MessageCircle
+    ThumbsUp, MessageCircle, RefreshCcw
 } from 'lucide-react-native';
 import clsx from 'clsx';
+import { useState, useEffect } from 'react';
+import { getQueueCount } from '../../lib/offline-queue';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { user } = useAuth();
+    const [queueCount, setQueueCount] = useState(0);
+
+    useEffect(() => {
+        const checkQueue = async () => {
+            const count = await getQueueCount();
+            setQueueCount(count);
+        };
+        checkQueue();
+        const interval = setInterval(checkQueue, 5000);
+        return () => clearInterval(interval);
+    }, []);
 
     const { data: issues } = useQuery({
         queryKey: ['my-issues'],
+        enabled: !!user,
         queryFn: async () => {
             try { return (await api.get('/api/issues/my')).data; }
             catch { return []; }
@@ -26,6 +42,7 @@ export default function HomeScreen() {
 
     const { data: statsData } = useQuery({
         queryKey: ['user-stats'],
+        enabled: !!user,
         queryFn: async () => {
             try {
                 const res = await api.get('/api/user/stats');
@@ -62,17 +79,17 @@ export default function HomeScreen() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'resolved': return { bg: 'bg-green-100', text: 'text-green-700', icon: '#059669', dot: '#10b981' };
-            case 'in_progress': return { bg: 'bg-blue-100', text: 'text-blue-700', icon: '#2563eb', dot: '#3b82f6' };
-            default: return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c', dot: '#f97316' };
+            case 'resolved': return { bg: 'bg-green-100', text: 'text-green-700', icon: '#16a34a', dot: '#22c55e' };
+            case 'in_progress': return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c', dot: '#f97316' };
+            default: return { bg: 'bg-slate-100', text: 'text-slate-700', icon: '#475569', dot: '#94a3b8' };
         }
     };
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
             case 'high': return { bg: 'bg-red-100', text: 'text-red-700', icon: '#dc2626' };
-            case 'medium': return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c' };
-            default: return { bg: 'bg-blue-100', text: 'text-blue-700', icon: '#2563eb' };
+            case 'medium': return { bg: 'bg-amber-100', text: 'text-amber-700', icon: '#d97706' };
+            default: return { bg: 'bg-slate-100', text: 'text-slate-700', icon: '#475569' };
         }
     };
 
@@ -81,11 +98,10 @@ export default function HomeScreen() {
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
 
                 {/* Premium Header */}
-                <View className="bg-blue-600 px-6 pt-8 pb-20">
-                    <View className="flex-row justify-between items-start mb-10">
-                        <View className="flex-1">
-                            <Text className="text-white font-bold text-4xl mb-1">Tarisa</Text>
-                            <Text className="text-white text-base opacity-90">Your civic engagement platform</Text>
+                <View className="bg-orange-600 px-6 pt-10 pb-20">
+                    <View className="flex-row justify-between items-center mb-8">
+                        <View className="flex-row items-center">
+                            <Text className="text-white font-bold text-2xl tracking-tighter">TARISA</Text>
                         </View>
                         <TouchableOpacity
                             onPress={() => router.push('/(protected)/broadcasts')}
@@ -93,28 +109,28 @@ export default function HomeScreen() {
                             activeOpacity={0.7}
                         >
                             <Bell size={24} color="white" strokeWidth={2} />
-                            <View className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-blue-600" />
+                            <View className="absolute top-2 right-2 w-3 h-3 bg-red-400 rounded-full border-2 border-orange-600" />
                         </TouchableOpacity>
                     </View>
 
                     {/* Stats Cards */}
                     <View className="flex-row gap-3">
-                        <View className="flex-1 bg-white/20 backdrop-blur-xl p-4 rounded-2xl border border-white/30">
+                        <View className="flex-1 bg-white/10 p-4 rounded-3xl">
                             <FileText size={20} color="white" strokeWidth={2.5} className="mb-2" />
                             <Text className="text-white font-bold text-2xl mb-0.5">{stats.reports}</Text>
-                            <Text className="text-white text-xs font-semibold uppercase tracking-wide opacity-90">Reports</Text>
+                            <Text className="text-white text-[10px] font-extrabold uppercase tracking-widest opacity-80">Reports</Text>
                         </View>
 
-                        <View className="flex-1 bg-white/20 backdrop-blur-xl p-4 rounded-2xl border border-white/30">
-                            <Award size={20} color="#fbbf24" strokeWidth={2.5} className="mb-2" />
-                            <Text className="text-yellow-300 font-bold text-2xl mb-0.5">{stats.credits}</Text>
-                            <Text className="text-white text-xs font-semibold uppercase tracking-wide opacity-90">Points</Text>
+                        <View className="flex-1 bg-white/10 p-4 rounded-3xl">
+                            <Award size={20} color="#FFD700" strokeWidth={2.5} className="mb-2" />
+                            <Text className="text-white font-bold text-2xl mb-0.5">{stats.credits}</Text>
+                            <Text className="text-white text-[10px] font-extrabold uppercase tracking-widest opacity-80">Points</Text>
                         </View>
 
-                        <View className="flex-1 bg-white/20 backdrop-blur-xl p-4 rounded-2xl border border-white/30">
+                        <View className="flex-1 bg-white/10 p-4 rounded-3xl">
                             <CheckCircle size={20} color="#4ade80" strokeWidth={2.5} className="mb-2" />
-                            <Text className="text-green-300 font-bold text-2xl mb-0.5">{stats.resolved}</Text>
-                            <Text className="text-white text-xs font-semibold uppercase tracking-wide opacity-90">Solved</Text>
+                            <Text className="text-white font-bold text-2xl mb-0.5">{stats.resolved}</Text>
+                            <Text className="text-white text-[10px] font-extrabold uppercase tracking-widest opacity-80">Solved</Text>
                         </View>
                     </View>
                 </View>
@@ -125,7 +141,7 @@ export default function HomeScreen() {
                     {/* Primary Action Cards */}
                     <View className="flex-row gap-4 mb-8">
                         <TouchableOpacity
-                            className="flex-1 bg-blue-600 p-6 rounded-3xl shadow-xl"
+                            className="flex-1 bg-orange-600 p-6 rounded-3xl shadow-xl"
                             onPress={() => router.push('/report')}
                             activeOpacity={0.8}
                         >
@@ -141,8 +157,8 @@ export default function HomeScreen() {
                             onPress={() => router.push('/(protected)/community')}
                             activeOpacity={0.8}
                         >
-                            <View className="w-14 h-14 bg-blue-100 rounded-2xl items-center justify-center mb-3">
-                                <Users color="#1d4ed8" size={28} strokeWidth={2.5} />
+                            <View className="w-14 h-14 bg-orange-100 rounded-2xl items-center justify-center mb-3">
+                                <Users color="#ea580c" size={28} strokeWidth={2.5} />
                             </View>
                             <Text className="font-bold text-gray-900 text-lg mb-0.5">Community</Text>
                             <Text className="text-gray-600 text-xs font-medium">Explore reports</Text>
@@ -158,7 +174,7 @@ export default function HomeScreen() {
                             </View>
                             <TouchableOpacity
                                 onPress={() => router.push('/(protected)/community')}
-                                className="flex-row items-center bg-blue-600 px-4 py-2.5 rounded-full"
+                                className="flex-row items-center bg-orange-600 px-4 py-2.5 rounded-full"
                                 activeOpacity={0.8}
                             >
                                 <Text className="text-white font-bold text-sm">View All</Text>
@@ -234,8 +250,8 @@ export default function HomeScreen() {
                             </ScrollView>
                         ) : (
                             <View className="items-center py-10 bg-white rounded-3xl border-2 border-dashed border-gray-300">
-                                <View className="w-16 h-16 bg-blue-50 rounded-full items-center justify-center mb-3">
-                                    <Sparkles size={28} color="#3b82f6" strokeWidth={2} />
+                                <View className="w-16 h-16 bg-orange-50 rounded-full items-center justify-center mb-3">
+                                    <Sparkles size={28} color="#f97316" strokeWidth={2} />
                                 </View>
                                 <Text className="text-gray-900 font-bold text-lg mb-1">All Clear!</Text>
                                 <Text className="text-gray-600 text-sm font-medium">No active issues right now</Text>
@@ -247,7 +263,15 @@ export default function HomeScreen() {
                     <View className="mb-4">
                         <View className="flex-row justify-between items-center mb-4">
                             <View>
-                                <Text className="font-bold text-gray-900 text-2xl mb-0.5">My Reports</Text>
+                                <View className="flex-row items-center gap-2 mb-0.5">
+                                    <Text className="font-bold text-gray-900 text-2xl">My Reports</Text>
+                                    {queueCount > 0 && (
+                                        <View className="bg-orange-500 px-2 py-0.5 rounded-full flex-row items-center gap-1">
+                                            <RefreshCcw size={10} color="white" />
+                                            <Text className="text-white text-[10px] font-bold">{queueCount} Pending</Text>
+                                        </View>
+                                    )}
+                                </View>
                                 <Text className="text-gray-600 text-sm font-medium">Your contributions</Text>
                             </View>
                             <TouchableOpacity
@@ -297,22 +321,22 @@ export default function HomeScreen() {
                                             <Text className="text-gray-700 text-sm ml-2 flex-1 font-medium" numberOfLines={1}>
                                                 {issue.location || 'Location not specified'}
                                             </Text>
-                                            <ArrowRight size={18} color="#2563eb" strokeWidth={2.5} />
+                                            <ArrowRight size={18} color="#ea580c" strokeWidth={2.5} />
                                         </View>
                                     </TouchableOpacity>
                                 );
                             })
                         ) : (
                             <View className="bg-white p-10 rounded-3xl border-2 border-gray-200 items-center shadow-lg">
-                                <View className="w-20 h-20 bg-blue-100 rounded-full items-center justify-center mb-4">
-                                    <Zap size={36} color="#1d4ed8" strokeWidth={2} />
+                                <View className="w-20 h-20 bg-orange-50 rounded-full items-center justify-center mb-4">
+                                    <Zap size={36} color="#ea580c" strokeWidth={2} />
                                 </View>
                                 <Text className="text-gray-900 font-bold text-xl mb-2">No reports yet</Text>
                                 <Text className="text-gray-600 text-sm text-center px-4 mb-6 leading-relaxed font-medium">
                                     Start making a difference in your community today
                                 </Text>
                                 <TouchableOpacity
-                                    className="bg-blue-600 px-8 py-4 rounded-full shadow-lg"
+                                    className="bg-orange-600 px-8 py-4 rounded-full shadow-lg"
                                     onPress={() => router.push('/report')}
                                     activeOpacity={0.8}
                                 >

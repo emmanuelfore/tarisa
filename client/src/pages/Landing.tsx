@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
-  "lucide-react";
-import { 
-  Shield, 
-  CheckCircle2, 
-  BarChart2, 
-  MapPin, 
-  ArrowRight, 
-  Users, 
-  Cpu, 
+"lucide-react";
+import {
+  Shield,
+  CheckCircle2,
+  BarChart2,
+  MapPin,
+  ArrowRight,
+  Users,
+  Cpu,
   Globe,
   MessageCircle,
   Clock,
@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 export default function Landing() {
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
       transition: { staggerChildren: 0.1, delayChildren: 0.3 }
     }
@@ -46,14 +46,10 @@ export default function Landing() {
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 h-20 flex items-center">
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-lg shadow-primary/20">
-              <Shield className="w-6 h-6" />
-            </div>
-            <span className="text-2xl font-black tracking-tight text-[#0a1b3d]">
-              TARISA
-            </span>
+            <img src="/assets/logo.png" className="w-40 h-40 rounded-xl primary/20" alt="Tarisa Logo" />
+
           </div>
-          
+
           <div className="hidden lg:flex gap-10 items-center">
             <nav className="flex gap-8 text-sm font-semibold text-gray-500">
               <a href="#solutions" className="hover:text-primary transition-colors">Solutions</a>
@@ -81,29 +77,25 @@ export default function Landing() {
         <section className="relative py-24 lg:py-32 overflow-hidden bg-white">
           <div className="container mx-auto px-6">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
-              <motion.div 
+              <motion.div
                 initial="hidden"
                 animate="visible"
                 variants={containerVariants}
                 className="space-y-8 relative z-10"
               >
-                <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-primary text-xs font-black uppercase tracking-widest border border-blue-100">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Government-Grade Solutions
-                </motion.div>
-                
+
                 <motion.h1 variants={itemVariants} className="text-5xl lg:text-7xl font-black text-[#0a1b3d] leading-[1.1] tracking-tight">
                   Modern Citizen <br />
-                  <span className="text-primary italic">Accountability.</span>
+                  <span className="text-blue-600 italic">Accountability.</span>
                 </motion.h1>
-                
+
                 <motion.p variants={itemVariants} className="text-xl text-gray-500 max-w-lg leading-relaxed font-medium">
                   The unified platform for reporting, resolving, and reconciling civic infrastructure. Built for transparency, speed, and trusted communities.
                 </motion.p>
-                
+
                 <motion.div variants={itemVariants} className="flex flex-wrap gap-4 pt-4">
                   <Link href="/signup">
-                    <Button size="lg" className="h-14 px-10 text-base bg-primary hover:bg-blue-700 shadow-xl shadow-blue-200 font-bold">
+                    <Button size="lg" className="h-14 px-10 text-base bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-200 font-bold">
                       Launch Resident Portal
                     </Button>
                   </Link>
@@ -128,7 +120,7 @@ export default function Landing() {
                 </motion.div>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
@@ -136,15 +128,15 @@ export default function Landing() {
               >
                 <div className="absolute -inset-10 bg-blue-50/50 rounded-full blur-3xl -z-10" />
                 <div className="rounded-[40px] overflow-hidden shadow-elevated border-8 border-white">
-                  <img 
-                    src="/assets/hero.png" 
-                    alt="Citizen Engagement" 
-                    className="w-full h-full object-cover" 
+                  <img
+                    src="/assets/hero.png"
+                    alt="Citizen Engagement"
+                    className="w-full h-full object-cover"
                   />
                 </div>
-                
+
                 {/* Float Card */}
-                <motion.div 
+                <motion.div
                   animate={{ y: [0, -10, 0] }}
                   transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                   className="absolute -bottom-8 -left-8 p-6 bg-white rounded-3xl shadow-2xl border border-gray-100 max-w-[260px]"
@@ -184,19 +176,19 @@ export default function Landing() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-8">
-              <SolutionCard 
+              <SolutionCard
                 icon={<MapPin className="w-8 h-8 text-white" />}
-                bg="bg-primary"
+                bg="bg-blue-600"
                 title="Infrastructure Tracking"
                 description="Precise geo-tagged reporting for potholes, sewage, and water leaks. Real-time visual heatmaps for decision makers."
               />
-              <SolutionCard 
+              <SolutionCard
                 icon={<BarChart2 className="w-8 h-8 text-white" />}
                 bg="bg-[#0a1b3d]"
                 title="SLA Management"
                 description="Advanced L1-L4 automated escalation ensures no report is left unanswered. Total audit traceability for every action."
               />
-              <SolutionCard 
+              <SolutionCard
                 icon={<Globe className="w-8 h-8 text-white" />}
                 bg="bg-cyan-600"
                 title="Civic Engagement"
@@ -219,17 +211,17 @@ export default function Landing() {
                 </div>
 
                 <div className="space-y-8">
-                  <FeatureRow 
+                  <FeatureRow
                     icon={<Users className="w-6 h-6" />}
                     title="Resident Verified Resolutions"
                     description="Issues can only be marked as 'Resolved' once verified by residents or field officers with visual 4K photo proof."
                   />
-                  <FeatureRow 
+                  <FeatureRow
                     icon={<Cpu className="w-6 h-6" />}
                     title="Automated Routing Logic"
                     description="Reports are instantly assigned to the correct jurisdictional department based on AI categorization and geo-data."
                   />
-                  <FeatureRow 
+                  <FeatureRow
                     icon={<MessageCircle className="w-6 h-6" />}
                     title="Direct Notification Layer"
                     description="Keep citizens informed with real-time push alerts about maintenance schedules, emergencies, and city broadcasts."
@@ -238,26 +230,26 @@ export default function Landing() {
               </div>
 
               <div className="grid grid-cols-2 gap-6 relative">
-                 <div className="space-y-6">
-                   <div className="h-64 rounded-[32px] bg-blue-50 border border-blue-100 p-8 flex flex-col justify-end shadow-soft">
-                      <div className="text-4xl font-black text-primary">12k+</div>
-                      <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Active Reporters</div>
-                   </div>
-                   <div className="h-48 bg-[#0a1b3d] rounded-[32px] p-8 flex flex-col justify-between text-white shadow-elevated">
-                      <BarChart2 className="w-10 h-10 opacity-40" />
-                      <div className="font-bold">Transparency Score <br /> <span className="text-2xl font-black leading-none">9.8/10</span></div>
-                   </div>
-                 </div>
-                 <div className="space-y-6 pt-12">
-                   <div className="h-48 bg-white border border-gray-100 rounded-[32px] p-8 shadow-soft flex flex-col justify-between">
-                      <Shield className="w-10 h-10 text-primary opacity-20" />
-                      <div className="font-bold text-[#0a1b3d]">AES-256 <br /> <span className="text-xs uppercase text-gray-400">Security Layer</span></div>
-                   </div>
-                   <div className="h-64 rounded-[32px] bg-cyan-50 border border-cyan-100 p-8 flex flex-col justify-end shadow-soft">
-                      <div className="text-4xl font-black text-cyan-600">Zimbabwe</div>
-                      <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Core Deployment</div>
-                   </div>
-                 </div>
+                <div className="space-y-6">
+                  <div className="h-64 rounded-[32px] bg-blue-50 border border-blue-100 p-8 flex flex-col justify-end shadow-soft">
+                    <div className="text-4xl font-black text-blue-600">12k+</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Active Reporters</div>
+                  </div>
+                  <div className="h-48 bg-[#0a1b3d] rounded-[32px] p-8 flex flex-col justify-between text-white shadow-elevated">
+                    <BarChart2 className="w-10 h-10 opacity-40" />
+                    <div className="font-bold">Transparency Score <br /> <span className="text-2xl font-black leading-none">9.8/10</span></div>
+                  </div>
+                </div>
+                <div className="space-y-6 pt-12">
+                  <div className="h-48 bg-white border border-gray-100 rounded-[32px] p-8 shadow-soft flex flex-col justify-between">
+                    <Shield className="w-10 h-10 text-blue-600 opacity-20" />
+                    <div className="font-bold text-[#0a1b3d]">AES-256 <br /> <span className="text-xs uppercase text-gray-400">Security Layer</span></div>
+                  </div>
+                  <div className="h-64 rounded-[32px] bg-cyan-50 border border-cyan-100 p-8 flex flex-col justify-end shadow-soft">
+                    <div className="text-4xl font-black text-cyan-600">Zimbabwe</div>
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-2">Core Deployment</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -295,13 +287,13 @@ export default function Landing() {
           <div className="container mx-auto px-6">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               <div className="space-y-8">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-primary text-xs font-black uppercase tracking-widest border border-blue-100">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-black uppercase tracking-widest border border-blue-100">
                   <Smartphone className="w-4 h-4" />
                   Mobile Accessibility
                 </div>
                 <h2 className="text-4xl lg:text-5xl font-black text-[#0a1b3d] leading-tight">
                   The Power of <br />
-                  <span className="text-primary italic">Tarisa in Your Pocket.</span>
+                  <span className="text-blue-600 italic">Tarisa in Your Pocket.</span>
                 </h2>
                 <p className="text-lg text-gray-500 font-medium leading-relaxed max-w-lg">
                   Report infrastructure issues instantly from the field. Our mobile application allows for real-time reporting with high-resolution photo proof and geo-tagging.
@@ -315,14 +307,14 @@ export default function Landing() {
                   </a>
                   <Link href="/download">
                     <Button size="lg" variant="outline" className="h-14 px-8 text-base border-gray-200 text-gray-700 font-bold hover:bg-gray-50 uppercase tracking-wider text-xs gap-2">
-                       Scan QR Code
+                      Scan QR Code
                     </Button>
                   </Link>
                 </div>
               </div>
 
               <div className="relative group">
-                <div className="absolute -inset-4 bg-primary/5 rounded-[48px] blur-2xl group-hover:bg-primary/10 transition-colors" />
+                <div className="absolute -inset-4 bg-blue-600/5 rounded-[48px] blur-2xl group-hover:bg-blue-600/10 transition-colors" />
                 <Card className="relative border-none bg-white rounded-[40px] shadow-soft overflow-hidden p-8 flex flex-col md:row items-center gap-8 border border-gray-50">
                   <div className="bg-gray-50 p-4 rounded-3xl shadow-inner shrink-0 leading-none">
                     {downloadUrl ? (
@@ -332,7 +324,7 @@ export default function Landing() {
                     )}
                   </div>
                   <div className="space-y-2 text-center md:text-left">
-                    <div className="text-xs font-black text-primary uppercase tracking-widest">Instant Install</div>
+                    <div className="text-xs font-black text-blue-600 uppercase tracking-widest">Instant Install</div>
                     <div className="text-xl font-bold text-[#0a1b3d]">Quick QR Access</div>
                     <p className="text-sm text-gray-400 font-medium">Scan the code with your camera to download the Android package directly.</p>
                   </div>
@@ -348,7 +340,7 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-12 mb-20">
             <div className="space-y-6">
               <div className="flex items-center gap-2">
-                <Shield className="w-8 h-8 text-primary" />
+                <img src="/assets/logo.png" className="w-8 h-8" alt="Tarisa Logo" />
                 <span className="text-2xl font-black tracking-tight italic">TARISA</span>
               </div>
               <p className="text-sm text-gray-400 font-medium leading-relaxed">
@@ -357,24 +349,22 @@ export default function Landing() {
                 Building trust through results.
               </p>
             </div>
-            <FooterCol 
+            <FooterCol
               title="Solutions"
               links={['Infrastructure Reporting', 'Departmental Escalation', 'Civic Credit Economy', 'Urban Heatmaps']}
             />
-            <FooterCol 
+            <FooterCol
               title="Agency"
               links={['Integration Guide', 'Developer API', 'Security Compliance', 'Case Studies']}
             />
-            <FooterCol 
+            <FooterCol
               title="Official"
               links={['Privacy Policy', 'Terms of Service', 'Government Partnership', 'Press Identity']}
             />
           </div>
           <div className="pt-12 border-t border-gray-100 flex flex-col md:row justify-between items-center gap-6">
             <div className="text-xs font-black text-gray-300 uppercase tracking-widest">© 2026 Tarisa Civic Infrastructure. Unified Accountability System.</div>
-            <div className="flex gap-8 text-xs font-black text-gray-400 uppercase tracking-[0.2em] italic">
-               Design by Antigravity // Built for Resilience
-            </div>
+
           </div>
         </div>
       </footer>
@@ -401,11 +391,11 @@ function SolutionCard({ icon, bg, title, description }: { icon: React.ReactNode,
 function FeatureRow({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
   return (
     <div className="flex gap-6 group">
-      <div className="mt-1 p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-primary group-hover:text-white transition-colors h-fit shadow-soft">
+      <div className="mt-1 p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-blue-600 group-hover:text-white transition-colors h-fit shadow-soft">
         {icon}
       </div>
       <div>
-        <h4 className="text-xl font-bold text-[#0a1b3d] mb-1 group-hover:text-primary transition-colors">{title}</h4>
+        <h4 className="text-xl font-bold text-[#0a1b3d] mb-1 group-hover:text-blue-600 transition-colors">{title}</h4>
         <p className="text-gray-400 text-sm font-medium">{description}</p>
       </div>
     </div>
@@ -419,7 +409,7 @@ function FooterCol({ title, links }: { title: string, links: string[] }) {
       <ul className="space-y-3">
         {links.map(link => (
           <li key={link}>
-            <a href="#" className="text-sm font-bold text-gray-500 hover:text-primary transition-colors">{link}</a>
+            <a href="#" className="text-sm font-bold text-gray-500 hover:text-blue-600 transition-colors">{link}</a>
           </li>
         ))}
       </ul>

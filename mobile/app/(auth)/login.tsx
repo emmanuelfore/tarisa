@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -55,7 +55,7 @@ export default function Login() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-blue-600">
+        <SafeAreaView className="flex-1 bg-orange-600">
             <StatusBar style="light" />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -67,8 +67,7 @@ export default function Login() {
                 >
                     {/* Header Section */}
                     <View className="items-center mb-12">
-                        <Text className="text-4xl font-bold text-white mb-2">Tarisa</Text>
-                        <Text className="text-blue-50 text-lg">Civic Engagement Platform</Text>
+                        <Text className="text-white font-bold text-5xl tracking-tighter">TARISA</Text>
                     </View>
 
                     {/* Login Card */}
@@ -82,9 +81,9 @@ export default function Login() {
                             </View>
                             <TouchableOpacity
                                 onPress={() => setIsAdmin(!isAdmin)}
-                                className={`px-4 py-2 rounded-full border ${isAdmin ? 'bg-amber-100 border-amber-300' : 'bg-blue-100 border-blue-300'}`}
+                                className={`px-4 py-2 rounded-full border ${isAdmin ? 'bg-orange-50 border-orange-200' : 'bg-gray-100 border-gray-200'}`}
                             >
-                                <Text className={`font-bold text-xs ${isAdmin ? 'text-amber-700' : 'text-blue-700'}`}>
+                                <Text className={`font-bold text-[10px] tracking-widest ${isAdmin ? 'text-orange-600' : 'text-gray-600'}`}>
                                     {isAdmin ? 'STAFF MODE' : 'CITIZEN MODE'}
                                 </Text>
                             </TouchableOpacity>
@@ -98,14 +97,14 @@ export default function Login() {
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
                                     {isAdmin ? (
-                                        <UserCircle size={20} color={focusedField === 'username' ? '#f59e0b' : '#9ca3af'} />
+                                        <UserCircle size={20} color={focusedField === 'username' ? '#ea580c' : '#9ca3af'} />
                                     ) : (
-                                        <Mail size={20} color={focusedField === 'email' ? '#f59e0b' : '#9ca3af'} />
+                                        <Mail size={20} color={focusedField === 'email' ? '#ea580c' : '#9ca3af'} />
                                     )}
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${(isAdmin ? focusedField === 'username' : focusedField === 'email')
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : 'border-gray-200'
                                         }`}
                                     placeholder={isAdmin ? "Enter username" : "you@example.com"}
@@ -127,11 +126,11 @@ export default function Login() {
                             <Text className="text-gray-700 font-semibold mb-2">Password</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <Lock size={20} color={focusedField === 'password' ? '#f59e0b' : '#9ca3af'} />
+                                    <Lock size={20} color={focusedField === 'password' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'password'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : 'border-gray-200'
                                         }`}
                                     placeholder="Enter your password"
@@ -153,7 +152,7 @@ export default function Login() {
                                 onPress={() => router.push('/(auth)/forgot-password')}
                                 className="mb-6"
                             >
-                                <Text className="text-blue-600 font-semibold text-right">Forgot Password?</Text>
+                                <Text className="text-orange-600 font-bold text-right">Forgot Password?</Text>
                             </TouchableOpacity>
                         )}
 
@@ -161,7 +160,7 @@ export default function Login() {
                         <TouchableOpacity
                             onPress={handleLogin}
                             disabled={loading}
-                            className={`w-full ${isAdmin ? 'bg-amber-600' : 'bg-blue-600'} rounded-xl py-4 items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
+                            className={`w-full bg-orange-600 rounded-xl py-4 items-center shadow-lg ${loading ? 'opacity-70' : ''}`}
                             activeOpacity={0.8}
                         >
                             {loading ? (

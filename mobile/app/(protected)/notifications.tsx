@@ -2,6 +2,7 @@ import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { useAuth } from '../../lib/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, CheckCircle, AlertTriangle, Info, XCircle } from 'lucide-react-native';
 import clsx from 'clsx';
@@ -12,10 +13,12 @@ import { ArrowLeft } from 'lucide-react-native';
 export default function NotificationsScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { user } = useAuth();
     const [refreshing, setRefreshing] = useState(false);
 
     const { data: notifications, refetch, isLoading } = useQuery({
         queryKey: ['notifications'],
+        enabled: !!user,
         queryFn: async () => {
             const res = await api.get('/api/notifications');
             return res.data;
@@ -48,7 +51,7 @@ export default function NotificationsScreen() {
             case 'error': return <XCircle size={24} color="#dc2626" />;
             case 'warning': return <AlertTriangle size={24} color="#f59e0b" />;
             case 'success': return <CheckCircle size={24} color="#16a34a" />;
-            default: return <Info size={24} color="#2563eb" />;
+            default: return <Info size={24} color="#ea580c" />;
         }
     };
 
@@ -58,7 +61,7 @@ export default function NotificationsScreen() {
             case 'error': return 'bg-red-50 border-red-100';
             case 'warning': return 'bg-yellow-50 border-yellow-100';
             case 'success': return 'bg-green-50 border-green-100';
-            default: return 'bg-blue-50 border-blue-100';
+            default: return 'bg-orange-50 border-orange-100';
         }
     };
 
@@ -99,11 +102,11 @@ export default function NotificationsScreen() {
                                 </View>
                                 <View className="flex-1">
                                     <View className="flex-row justify-between items-start mb-1">
-                                        <Text className={clsx("text-base font-bold text-gray-900", !item.read && "text-blue-900")}>
+                                        <Text className={clsx("text-base font-bold text-gray-900", !item.read && "text-orange-900")}>
                                             {item.title}
                                         </Text>
                                         {!item.read && (
-                                            <View className="w-2 h-2 bg-blue-500 rounded-full mt-2" />
+                                            <View className="w-2 h-2 bg-orange-500 rounded-full mt-2" />
                                         )}
                                     </View>
                                     <Text className="text-gray-600 text-sm leading-5 mb-2">

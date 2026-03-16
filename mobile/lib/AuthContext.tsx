@@ -45,11 +45,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
-    } catch (e) {
-      console.log('[AUTH] Session validation failed or no session:', e);
-      // If validation fails, we should stay logged out
-      setUser(null);
-      await AsyncStorage.removeItem('user_data');
+    } catch (e: any) {
+      if (e?.response?.status === 401) {
+        // Genuine auth failure — log out
+        console.log('[AUTH] Session invalid (401), logging out');
+        setUser(null);
+        await AsyncStorage.removeItem('user_data');
+      } else {
+        // Network error — stay logged in from cache
+        console.log('[AUTH] Network error, restoring session from cache');
+        const stored = await AsyncStorage.getItem('user_data');
+        if (stored) {
+          setUser(JSON.parse(stored));
+        }
+      }
     } finally {
       setLoading(false);
     }

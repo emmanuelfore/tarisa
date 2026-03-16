@@ -1,11 +1,12 @@
 
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, Link } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Clock, Filter, MapPin, Search, Users, TrendingUp, MessageCircle, ThumbsUp, AlertTriangle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView } from 'react-native';
 import { useState } from 'react';
 import clsx from 'clsx';
 
@@ -40,19 +41,39 @@ export default function CommunityScreen() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'resolved': return { bg: 'bg-green-100', text: 'text-green-700', dot: '#10b981' };
-            case 'in_progress': return { bg: 'bg-blue-100', text: 'text-blue-700', dot: '#3b82f6' };
-            default: return { bg: 'bg-orange-100', text: 'text-orange-700', dot: '#f97316' };
+            case 'resolved': return { bg: 'bg-green-100', text: 'text-green-700', dot: '#16a34a' };
+            case 'in_progress': return { bg: 'bg-orange-100', text: 'text-orange-700', dot: '#ea580c' };
+            default: return { bg: 'bg-slate-100', text: 'text-slate-700', dot: '#475569' };
         }
     };
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
             case 'high': return { bg: 'bg-red-100', text: 'text-red-700', icon: '#dc2626' };
-            case 'medium': return { bg: 'bg-orange-100', text: 'text-orange-700', icon: '#ea580c' };
-            default: return { bg: 'bg-blue-100', text: 'text-blue-700', icon: '#2563eb' };
+            case 'medium': return { bg: 'bg-amber-100', text: 'text-amber-700', icon: '#d97706' };
+            default: return { bg: 'bg-slate-100', text: 'text-slate-700', icon: '#475569' };
         }
     };
+
+    const renderCategoryItem = ({ item }: { item: any }) => (
+        <TouchableOpacity
+            onPress={() => setSelectedCategory(item.id)}
+            className={clsx(
+                "px-4 py-2 rounded-full mr-2 border-2",
+                selectedCategory === item.id
+                    ? 'bg-orange-600 border-orange-600 shadow-orange-200/50'
+                    : 'bg-white border-gray-300'
+            )}
+            activeOpacity={0.8}
+        >
+            <Text className={clsx(
+                "text-xs font-bold",
+                selectedCategory === item.id ? 'text-white' : 'text-gray-700'
+            )}>
+                {item.label}
+            </Text>
+        </TouchableOpacity>
+    );
 
     const filteredIssues = issues?.filter((i: any) =>
         i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -60,15 +81,15 @@ export default function CommunityScreen() {
         i.location?.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
 
-    const renderItem = ({ item }: { item: any }) => {
+    const renderIssueItem = ({ item }: { item: any }) => {
         const statusColors = getStatusColor(item.status);
         const severityColors = getSeverityColor(item.severity);
         return (
-            <TouchableOpacity
-                className="bg-white p-3.5 mb-3 rounded-2xl border-2 border-gray-200 shadow-md"
-                onPress={() => router.push(`/issue/${item.id}`)}
-                activeOpacity={0.9}
-            >
+            <Link href={`/issue/${item.id}`} asChild>
+                <TouchableOpacity
+                    className="bg-white p-3.5 mb-3 rounded-2xl border-2 border-gray-200 shadow-md"
+                    activeOpacity={0.9}
+                >
                 <View className="flex-row justify-between items-start mb-2.5">
                     <View className="flex-1 mr-3">
                         <Text className="font-bold text-gray-900 text-base mb-1 leading-tight" numberOfLines={1}>
@@ -83,16 +104,42 @@ export default function CommunityScreen() {
                     </View>
                     <View className="flex-col gap-1.5 items-end">
                         {item.severity && (
-                            <View className={clsx("px-2 py-0.5 rounded-md flex-row items-center gap-1", severityColors.bg)}>
+                            <View style={{
+                                paddingHorizontal: 8,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
+                                backgroundColor: severityColors.bg
+                            }}>
                                 <AlertTriangle size={10} color={severityColors.icon} strokeWidth={2.5} />
-                                <Text className={clsx("text-[9px] font-bold uppercase", severityColors.text)}>
+                                <Text style={{
+                                    fontSize: 9,
+                                    fontWeight: 'bold',
+                                    textTransform: 'uppercase',
+                                    color: severityColors.text
+                                }}>
                                     {item.severity}
                                 </Text>
                             </View>
                         )}
-                        <View className={clsx("px-2.5 py-1 rounded-full flex-row items-center gap-1", statusColors.bg)}>
-                            <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColors.dot }} />
-                            <Text className={clsx("text-[10px] font-bold uppercase", statusColors.text)}>
+                        <View style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            borderRadius: 9999,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 4,
+                            backgroundColor: statusColors.bg
+                        }}>
+                            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusColors.dot }} />
+                            <Text style={{
+                                fontSize: 10,
+                                fontWeight: 'bold',
+                                textTransform: 'uppercase',
+                                color: statusColors.text
+                            }}>
                                 {item.status.replace('_', ' ')}
                             </Text>
                         </View>
@@ -122,18 +169,17 @@ export default function CommunityScreen() {
                     </View>
                 </View>
             </TouchableOpacity>
+            </Link>
         );
     };
 
     return (
         <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-            <Stack.Screen options={{ headerShown: false }} />
-
             {/* Header */}
             <View className="px-6 py-5 bg-white border-b-2 border-gray-200">
                 <View className="flex-row items-center mb-4">
-                    <View className="bg-blue-100 p-2.5 rounded-2xl mr-3">
-                        <Users size={26} color="#1d4ed8" strokeWidth={2.5} />
+                    <View className="bg-orange-50 p-2.5 rounded-2xl mr-3 border border-orange-100">
+                        <Users size={26} color="#ea580c" strokeWidth={2.5} />
                     </View>
                     <View>
                         <Text className="text-2xl font-bold text-gray-900">Community</Text>
@@ -142,66 +188,78 @@ export default function CommunityScreen() {
                 </View>
 
                 {/* Search Bar */}
-                <View className="flex-row items-center bg-gray-50 rounded-2xl px-4 py-3.5 mb-3 border-2 border-gray-200">
+                <View className="flex-row items-center bg-gray-50 rounded-2xl px-4 mb-3 border-2 border-gray-200" style={{ height: 48 }}>
                     <Search size={20} color="#6b7280" strokeWidth={2} />
                     <TextInput
-                        className="flex-1 ml-3 text-gray-900 font-medium text-base"
+                        style={{ flex: 1, marginLeft: 12, color: '#111827', fontSize: 16, fontWeight: '500', height: '100%' }}
                         placeholder="Search reports..."
                         placeholderTextColor="#9ca3af"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        returnKeyType="search"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        clearButtonMode="while-editing"
                     />
                 </View>
 
                 {/* Category Filter */}
-                <FlatList
-                    data={displayCategories}
+                <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    className="-mx-2"
+                    style={{ marginHorizontal: -8 }}
                     contentContainerStyle={{ paddingHorizontal: 8 }}
-                    renderItem={({ item }) => (
+                >
+                    {displayCategories.map(item => (
                         <TouchableOpacity
+                            key={item.id}
                             onPress={() => setSelectedCategory(item.id)}
-                            className={clsx(
-                                "px-4 py-2 rounded-full mr-2 border-2",
-                                selectedCategory === item.id
-                                    ? 'bg-blue-600 border-blue-600'
-                                    : 'bg-white border-gray-300'
-                            )}
+                            style={{ 
+                                paddingHorizontal: 16, 
+                                paddingVertical: 8, 
+                                borderRadius: 9999, 
+                                marginRight: 8, 
+                                borderWidth: 2,
+                                backgroundColor: selectedCategory === item.id ? '#ea580c' : '#ffffff',
+                                borderColor: selectedCategory === item.id ? '#ea580c' : '#d1d5db'
+                            }}
                             activeOpacity={0.8}
                         >
-                            <Text className={clsx(
-                                "text-xs font-bold",
-                                selectedCategory === item.id ? 'text-white' : 'text-gray-700'
-                            )}>
+                            <Text style={{
+                                fontSize: 12,
+                                fontWeight: 'bold',
+                                color: selectedCategory === item.id ? '#ffffff' : '#374151'
+                            }}>
                                 {item.label}
                             </Text>
                         </TouchableOpacity>
-                    )}
-                />
+                    ))}
+                </ScrollView>
             </View>
 
             {isLoading ? (
                 <View className="flex-1 items-center justify-center">
-                    <ActivityIndicator size="large" color="#2563eb" />
+                    <ActivityIndicator size="large" color="#ea580c" />
                 </View>
             ) : filteredIssues.length === 0 ? (
                 <View className="flex-1 items-center justify-center px-10">
-                    <View className="w-20 h-20 bg-blue-50 rounded-full items-center justify-center mb-4">
-                        <Filter size={36} color="#3b82f6" strokeWidth={2} />
+                    <View className="w-20 h-20 bg-orange-50 rounded-full items-center justify-center mb-4">
+                        <Filter size={36} color="#ea580c" strokeWidth={2.5} />
                     </View>
                     <Text className="text-gray-900 font-bold text-xl mb-2">No Reports Found</Text>
                     <Text className="text-gray-600 text-center font-medium">Try adjusting your filters or search query.</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredIssues}
-                    renderItem={renderItem}
-                    keyExtractor={item => item.id.toString()}
+                <ScrollView
                     contentContainerStyle={{ padding: 20 }}
                     showsVerticalScrollIndicator={false}
-                />
+                >
+                    {filteredIssues.map((item: any) => (
+                        <View key={item.id}>
+                            {renderIssueItem({ item })}
+                        </View>
+                    ))}
+                </ScrollView>
             )}
         </SafeAreaView>
     );

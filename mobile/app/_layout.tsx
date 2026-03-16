@@ -16,6 +16,7 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 import { AuthProvider } from '../lib/AuthContext';
+import OfflineBanner from '../components/OfflineBanner';
 
 export default function RootLayout() {
     useEffect(() => {
@@ -32,6 +33,7 @@ export default function RootLayout() {
                         <Stack.Screen name="(auth)" />
                         <Stack.Screen name="(protected)" />
                     </Stack>
+                    <OfflineBanner />
                     <StatusBar style="auto" />
                 </SafeAreaProvider>
             </AuthProvider>

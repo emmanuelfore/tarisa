@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../../lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -133,7 +133,7 @@ export default function Register() {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-blue-600">
+        <SafeAreaView className="flex-1 bg-orange-600">
             <StatusBar style="light" />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -146,8 +146,7 @@ export default function Register() {
                 >
                     {/* Header Section */}
                     <View className="items-center mb-8 mt-4">
-                        <Text className="text-4xl font-bold text-white mb-2">Join Tarisa</Text>
-                        <Text className="text-blue-50 text-base">Create your account</Text>
+                        <Text className="text-white font-bold text-5xl tracking-tighter">TARISA</Text>
                     </View>
 
                     {/* Registration Card */}
@@ -160,11 +159,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">Full Name</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <User size={20} color={focusedField === 'fullName' ? '#f59e0b' : '#9ca3af'} />
+                                    <User size={20} color={focusedField === 'fullName' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'fullName'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.fullName && touched.has('fullName')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -190,11 +189,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">Email Address</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <Mail size={20} color={focusedField === 'email' ? '#f59e0b' : '#9ca3af'} />
+                                    <Mail size={20} color={focusedField === 'email' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'email'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.email && touched.has('email')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -221,11 +220,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">Password</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <Lock size={20} color={focusedField === 'password' ? '#f59e0b' : '#9ca3af'} />
+                                    <Lock size={20} color={focusedField === 'password' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'password'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.password && touched.has('password')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -251,11 +250,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">Phone Number</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <Phone size={20} color={focusedField === 'phone' ? '#f59e0b' : '#9ca3af'} />
+                                    <Phone size={20} color={focusedField === 'phone' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'phone'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.phone && touched.has('phone')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -281,11 +280,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">National ID</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <HomeIcon size={20} color={focusedField === 'nationalId' ? '#f59e0b' : '#9ca3af'} />
+                                    <HomeIcon size={20} color={focusedField === 'nationalId' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'nationalId'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.nationalId && touched.has('nationalId')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -309,11 +308,11 @@ export default function Register() {
                             <Text className="text-gray-700 font-semibold mb-2">Address</Text>
                             <View className="relative">
                                 <View className="absolute left-4 top-4 z-10">
-                                    <MapPin size={20} color={focusedField === 'address' ? '#f59e0b' : '#9ca3af'} />
+                                    <MapPin size={20} color={focusedField === 'address' ? '#ea580c' : '#9ca3af'} />
                                 </View>
                                 <TextInput
                                     className={`w-full bg-gray-50 rounded-xl pl-12 pr-4 py-3.5 text-gray-900 text-base border-2 ${focusedField === 'address'
-                                        ? 'border-amber-400 bg-amber-50'
+                                        ? 'border-orange-400 bg-orange-50'
                                         : errors.address && touched.has('address')
                                             ? 'border-red-400'
                                             : 'border-gray-200'
@@ -340,7 +339,7 @@ export default function Register() {
                         <TouchableOpacity
                             onPress={handleRegister}
                             disabled={loading}
-                            className={`w-full bg-blue-600 rounded-xl py-4 items-center shadow-lg mt-2 ${loading ? 'opacity-70' : ''}`}
+                            className={`w-full bg-orange-600 rounded-xl py-4 items-center shadow-lg mt-2 ${loading ? 'opacity-70' : ''}`}
                             activeOpacity={0.8}
                         >
                             {loading ? (
