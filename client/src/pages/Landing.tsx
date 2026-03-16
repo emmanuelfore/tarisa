@@ -93,9 +93,8 @@ export default function Landing() {
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-3 group">
             <div className="relative overflow-hidden rounded-xl">
-               <img src={logoNew} className="h-10 w-auto object-contain" alt="Tarisa Logo" />
+              <img src={logoNew} className="h-15 w-auto object-contain" alt="Tarisa Logo" />
             </div>
-            <span className="text-xl font-black tracking-tighter text-[#0a1b3d] group-hover:text-orange-600 transition-colors uppercase">TARISA</span>
           </div>
 
           <div className="hidden lg:flex gap-10 items-center">
@@ -120,12 +119,12 @@ export default function Landing() {
         </div>
       </nav>
 
-      <main className="pt-20">
+      <main className="pt-0">
         {/* Dynamic Hero Section */}
         <section className="relative py-24 lg:py-40 overflow-hidden bg-white">
           <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-orange-50/30 to-transparent -z-10" />
           <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent" />
-          
+
           <div className="container mx-auto px-6">
             <div className="grid lg:grid-cols-2 gap-20 items-center">
               <motion.div
@@ -134,10 +133,6 @@ export default function Landing() {
                 variants={containerVariants}
                 className="space-y-10 relative z-10"
               >
-                <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100/50">
-                  <Zap className="w-3 h-3 text-orange-600 fill-orange-600" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-700">Next-Gen Civic Platform</span>
-                </motion.div>
 
                 <motion.h1 variants={itemVariants} className="text-6xl lg:text-[84px] font-black text-[#0a1b3d] leading-[0.95] tracking-tight">
                   Modern Citizen <br />
@@ -154,9 +149,9 @@ export default function Landing() {
                       Register as Citizen
                     </Button>
                   </a>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
+                  <Button
+                    size="lg"
+                    variant="outline"
                     className="h-16 px-12 text-base border-gray-200 text-gray-700 font-black hover:bg-gray-50 rounded-2xl border-2 uppercase tracking-widest text-[11px]"
                     onClick={() => setIsDemoModalOpen(true)}
                   >
@@ -204,11 +199,11 @@ export default function Landing() {
                   </div>
                   <div className="space-y-3">
                     <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                      <motion.div 
+                      <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: "94.8%" }}
                         transition={{ duration: 2, delay: 1 }}
-                        className="h-full bg-orange-600" 
+                        className="h-full bg-orange-600"
                       />
                     </div>
                     <div className="text-[11px] font-black text-orange-600 uppercase flex justify-between tracking-tight">
@@ -234,7 +229,7 @@ export default function Landing() {
               >
                 Core Capabilities
               </motion.div>
-              <motion.h2 
+              <motion.h2
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -346,9 +341,9 @@ export default function Landing() {
                       Register as Citizen
                     </Button>
                   </a>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
+                  <Button
+                    size="lg"
+                    variant="outline"
                     className="h-20 px-16 text-lg font-black border-white/10 text-white hover:bg-white/5 uppercase tracking-widest rounded-2xl transition-all"
                     onClick={() => setIsDemoModalOpen(true)}
                   >
@@ -377,7 +372,7 @@ export default function Landing() {
                   Report infrastructure issues instantly from the field. Our mobile application allows for real-time reporting with high-resolution photo proof and geo-tagging.
                 </p>
                 <div className="flex flex-wrap gap-6 pt-6">
-                   <a href="/api/download/apk" download="tarisa-app.apk">
+                  <a href="/api/download/apk" download="tarisa-app.apk">
                     <Button size="lg" className="h-16 px-10 text-sm bg-orange-600 shadow-orange-200/50 hover:bg-orange-700 text-white shadow-2xl font-black uppercase tracking-[0.15em] rounded-2xl gap-3">
                       <Download className="w-6 h-6" />
                       Download APK
@@ -407,8 +402,8 @@ export default function Landing() {
                     <div className="text-3xl font-black text-[#0a1b3d]">Direct Sync</div>
                     <p className="text-gray-400 font-medium leading-relaxed">Scan the high-density code to securely download the current Tarisa build for your Android device.</p>
                     <div className="flex items-center gap-2 text-orange-600 font-black text-xs uppercase tracking-widest pt-2">
-                       <ExternalLink size={14} />
-                       Official Release v1.02
+                      <ExternalLink size={14} />
+                      Official Release v1.02
                     </div>
                   </div>
                 </Card>
@@ -432,12 +427,12 @@ export default function Landing() {
                 Building trust through results.
               </p>
               <div className="flex gap-4">
-                 <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors cursor-pointer">
-                    <Globe size={18} />
-                 </div>
-                 <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors cursor-pointer">
-                    <MessageCircle size={18} />
-                 </div>
+                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors cursor-pointer">
+                  <Globe size={18} />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:text-orange-600 transition-colors cursor-pointer">
+                  <MessageCircle size={18} />
+                </div>
               </div>
             </div>
             <FooterCol
@@ -456,9 +451,9 @@ export default function Landing() {
           <div className="pt-16 border-t border-gray-100 flex flex-col md:row justify-between items-center gap-8">
             <div className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">© 2026 Tarisa Civic Infrastructure. Unified Accountability System.</div>
             <div className="flex gap-8 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-               <a href="#" className="hover:text-orange-600 transition-colors">Sitemap</a>
-               <a href="#" className="hover:text-orange-600 transition-colors">Status</a>
-               <a href="#" className="hover:text-orange-600 transition-colors">Security</a>
+              <a href="#" className="hover:text-orange-600 transition-colors">Sitemap</a>
+              <a href="#" className="hover:text-orange-600 transition-colors">Status</a>
+              <a href="#" className="hover:text-orange-600 transition-colors">Security</a>
             </div>
           </div>
         </div>
@@ -482,9 +477,9 @@ export default function Landing() {
               </DialogDescription>
             </DialogHeader>
 
-            <DemoRequestForm 
-              onSubmit={(data) => demoMutation.mutate(data)} 
-              isLoading={demoMutation.isPending} 
+            <DemoRequestForm
+              onSubmit={(data) => demoMutation.mutate(data)}
+              isLoading={demoMutation.isPending}
             />
           </div>
         </DialogContent>
@@ -519,7 +514,7 @@ function DemoRequestForm({ onSubmit, isLoading }: { onSubmit: (data: InsertDemoR
           {errors.email && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.email.message}</p>}
         </div>
       </div>
-      
+
       <div className="grid grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="organization" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Agency / Organization</Label>
@@ -575,9 +570,9 @@ function SolutionCard({ icon, gradient, title, description }: { icon: React.Reac
           <p className="text-gray-400 font-medium leading-relaxed italic line-clamp-3">{description}</p>
         </div>
         <div className="pt-4">
-           <div className="flex items-center gap-2 text-xs font-black text-orange-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all group-hover:translate-y-0 translate-y-2">
-              Learn More <ArrowRight size={14} />
-           </div>
+          <div className="flex items-center gap-2 text-xs font-black text-orange-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all group-hover:translate-y-0 translate-y-2">
+            Learn More <ArrowRight size={14} />
+          </div>
         </div>
       </CardContent>
     </Card>

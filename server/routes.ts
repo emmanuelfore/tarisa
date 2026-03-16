@@ -75,6 +75,7 @@ import {
   officers,
   departments,
   issueCategories,
+  insertDemoRequestSchema,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
@@ -2548,6 +2549,39 @@ export async function registerRoutes(
       res.json({ message: "Category deleted" });
     } catch (error) {
       res.status(500).json({ error: "Failed to delete category" });
+    }
+  });
+
+  // ============ DEMO REQUESTS ROUTE ============
+  app.post("/api/demo-requests", async (req, res) => {
+    try {
+      const data = insertDemoRequestSchema.parse(req.body);
+      const demoRequest = await storage.createDemoRequest(data);
+      
+      // Simulate sending email to admins
+      console.log("------------------------------------------");
+      console.log(`📧 NEW DEMO REQUEST RECEIVED`);
+      console.log(`From: ${data.name} (${data.email})`);
+      console.log(`Organization: ${data.organization}`);
+      console.log(`Role: ${data.role || "N/A"}`);
+      console.log(`Message: ${data.message || "No message"}`);
+      console.log("------------------------------------------");
+
+      // In a real app, you'd use a mailer here:
+      // await mailer.send({
+      //   to: "admin@tarisa.co",
+      //   subject: `New Demo Request: ${data.organization}`,
+      //   text: `Name: ${data.name}\nEmail: ${data.email}\nOrganization: ${data.organization}\nMessage: ${data.message}`
+      // });
+
+      res.status(201).json(demoRequest);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: error.errors });
+      } else {
+        console.error("Failed to create demo request:", error);
+        res.status(500).json({ error: "Internal server error" });
+      }
     }
   });
 
