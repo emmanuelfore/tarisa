@@ -451,6 +451,27 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
+// Demo Requests (for landing page)
+export const demoRequests = pgTable("demo_requests", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  organization: text("organization").notNull(),
+  role: text("role"),
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // pending, contacted, scheduled
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertDemoRequestSchema = createInsertSchema(demoRequests).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+});
+
+export type DemoRequest = typeof demoRequests.$inferSelect;
+export type InsertDemoRequest = z.infer<typeof insertDemoRequestSchema>;
+
 // Admin users with role-based access control
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),

@@ -14,15 +14,38 @@ import {
   Smartphone,
   ExternalLink,
   Zap,
-  Star
+  Star,
+  Building2,
+  Mail,
+  Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { QRCodeSVG } from "qrcode.react";
 import { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { insertDemoRequestSchema, type InsertDemoRequest } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import logoNew from "@/assets/logo_new.png";
 
 export default function Landing() {
+  const { toast } = useToast();
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -33,7 +56,7 @@ export default function Landing() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 30 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } }
   };
 
   const [downloadUrl, setDownloadUrl] = useState("");
@@ -42,6 +65,27 @@ export default function Landing() {
     setDownloadUrl(`${window.location.origin}/api/download/apk`);
   }, []);
 
+  const demoMutation = useMutation({
+    mutationFn: async (data: InsertDemoRequest) => {
+      const res = await apiRequest("POST", "/api/demo-requests", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Request Sent!",
+        description: "Our agency team will contact you shortly to schedule your demo.",
+      });
+      setIsDemoModalOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Submission Failed",
+        description: "Please check your details and try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="min-h-screen bg-[#fcfcfd] text-[#1a1a1b] font-sans selection:bg-orange-600/10">
       {/* Premium Glass Navbar */}
@@ -49,7 +93,7 @@ export default function Landing() {
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center gap-3 group">
             <div className="relative overflow-hidden rounded-xl">
-               <img src="/assets/logo_new.png" className="h-10 w-auto object-contain" alt="Tarisa Logo" />
+               <img src={logoNew} className="h-10 w-auto object-contain" alt="Tarisa Logo" />
             </div>
             <span className="text-xl font-black tracking-tighter text-[#0a1b3d] group-hover:text-orange-600 transition-colors uppercase">TARISA</span>
           </div>
@@ -105,12 +149,17 @@ export default function Landing() {
                 </motion.p>
 
                 <motion.div variants={itemVariants} className="flex flex-wrap gap-5 pt-4">
-                  <Link href="/signup">
-                    <Button size="lg" className="h-16 px-12 text-base bg-orange-600 hover:bg-orange-700 shadow-2xl shadow-orange-200/50 font-black rounded-2xl transition-all hover:-translate-y-1">
-                      Launch Resident Portal
+                  <a href="#download">
+                    <Button size="lg" className="h-16 px-12 text-base bg-orange-600 hover:bg-orange-700 shadow-2xl shadow-orange-200/50 font-black rounded-2xl transition-all hover:-translate-y-1 uppercase tracking-widest text-[11px]">
+                      Register as Citizen
                     </Button>
-                  </Link>
-                  <Button size="lg" variant="outline" className="h-16 px-12 text-base border-gray-200 text-gray-700 font-bold hover:bg-gray-50 rounded-2xl border-2">
+                  </a>
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="h-16 px-12 text-base border-gray-200 text-gray-700 font-black hover:bg-gray-50 rounded-2xl border-2 uppercase tracking-widest text-[11px]"
+                    onClick={() => setIsDemoModalOpen(true)}
+                  >
                     Request Agency Demo
                   </Button>
                 </motion.div>
@@ -125,7 +174,7 @@ export default function Landing() {
               <motion.div
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+                transition={{ duration: 1, ease: "easeOut" as const, delay: 0.2 }}
                 className="relative"
               >
                 <div className="absolute -inset-20 bg-orange-100/40 rounded-full blur-[120px] -z-10 animate-pulse" />
@@ -141,7 +190,7 @@ export default function Landing() {
                 {/* Glass Float Card */}
                 <motion.div
                   animate={{ y: [0, -15, 0] }}
-                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" as const }}
                   className="absolute -bottom-10 -left-10 p-8 bg-white/90 backdrop-blur-2xl rounded-[32px] shadow-[0_32px_64px_-16px_rgba(234,88,12,0.15)] border border-white max-w-[280px]"
                 >
                   <div className="flex items-center gap-5 mb-6">
@@ -292,16 +341,19 @@ export default function Landing() {
                 <h2 className="text-5xl lg:text-7xl font-black leading-[0.9] tracking-tighter">Ready to transform your jurisdictional accountability?</h2>
                 <p className="text-2xl text-orange-100/50 font-medium max-w-2xl mx-auto">Join over 100+ departments leveraging Tarisa to deliver world-class service to their residents.</p>
                 <div className="flex flex-wrap justify-center gap-8 pt-6">
-                  <Link href="/signup">
+                  <a href="#download">
                     <Button size="lg" className="h-20 px-16 text-lg font-black bg-orange-600 text-white hover:bg-orange-700 shadow-2xl shadow-orange-900/40 uppercase tracking-widest rounded-2xl transition-all active:scale-95">
                       Register as Citizen
                     </Button>
-                  </Link>
-                  <Link href="/login">
-                    <Button size="lg" variant="outline" className="h-20 px-16 text-lg font-black border-white/10 text-white hover:bg-white/5 uppercase tracking-widest rounded-2xl transition-all">
-                      Official Access
-                    </Button>
-                  </Link>
+                  </a>
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="h-20 px-16 text-lg font-black border-white/10 text-white hover:bg-white/5 uppercase tracking-widest rounded-2xl transition-all"
+                    onClick={() => setIsDemoModalOpen(true)}
+                  >
+                    Request Agency Demo
+                  </Button>
                 </div>
               </div>
             </div>
@@ -371,7 +423,7 @@ export default function Landing() {
           <div className="grid md:grid-cols-4 gap-20 mb-32">
             <div className="space-y-8">
               <div className="flex items-center gap-3">
-                 <img src="/assets/logo_new.png" className="h-8 w-auto" alt="Tarisa Logo" />
+                <img src={logoNew} className="h-8 w-auto" alt="Tarisa Logo" />
                 <span className="text-2xl font-black tracking-tighter text-[#0a1b3d]">TARISA</span>
               </div>
               <p className="text-gray-400 font-medium leading-relaxed">
@@ -411,7 +463,94 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Schedule Demo Modal */}
+      <Dialog open={isDemoModalOpen} onOpenChange={setIsDemoModalOpen}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-white border-none rounded-[32px] shadow-2xl z-[100]">
+          <div className="h-2 w-full bg-orange-600" />
+          <div className="p-10 space-y-8">
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 rounded-2xl bg-orange-50 text-orange-600">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Government & Enterprise</div>
+              </div>
+              <DialogTitle className="text-4xl font-black text-[#0a1b3d] tracking-tight">Schedule a Deep-Dive Demo.</DialogTitle>
+              <DialogDescription className="text-lg text-gray-400 font-medium">
+                See how Tarisa can transform your jurisdiction's efficiency and transparency.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DemoRequestForm 
+              onSubmit={(data) => demoMutation.mutate(data)} 
+              isLoading={demoMutation.isPending} 
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function DemoRequestForm({ onSubmit, isLoading }: { onSubmit: (data: InsertDemoRequest) => void, isLoading: boolean }) {
+  const { register, handleSubmit, formState: { errors } } = useForm<InsertDemoRequest>({
+    resolver: zodResolver(insertDemoRequestSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      organization: "",
+      role: "",
+      message: ""
+    }
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Full Name</Label>
+          <Input id="name" {...register("name")} className="h-14 bg-gray-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-orange-600/20 font-bold" />
+          {errors.name && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.name.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Work Email</Label>
+          <Input id="email" type="email" {...register("email")} className="h-14 bg-gray-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-orange-600/20 font-bold" />
+          {errors.email && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.email.message}</p>}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="organization" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Agency / Organization</Label>
+          <Input id="organization" {...register("organization")} className="h-14 bg-gray-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-orange-600/20 font-bold" />
+          {errors.organization && <p className="text-[10px] text-red-500 font-bold uppercase">{errors.organization.message}</p>}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="role" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Job Title / Role</Label>
+          <Input id="role" {...register("role")} className="h-14 bg-gray-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-orange-600/20 font-bold" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="message" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Additional Context</Label>
+        <Textarea id="message" {...register("message")} className="min-h-[100px] bg-gray-50 border-none rounded-2xl focus-visible:ring-2 focus-visible:ring-orange-600/20 font-medium resize-none" placeholder="Tell us about your jurisdiction..." />
+      </div>
+
+      <Button type="submit" disabled={isLoading} className="w-full h-16 bg-orange-600 hover:bg-orange-700 text-white font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-orange-200 transition-all">
+        {isLoading ? (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Processing...
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            Send Request
+          </div>
+        )}
+      </Button>
+    </form>
   );
 }
 

@@ -1156,6 +1156,11 @@ export class DatabaseStorage implements IStorage {
     return notification;
   }
 
+  async createDemoRequest(request: InsertDemoRequest): Promise<DemoRequest> {
+    const [result] = await db.insert(demoRequests).values(request).returning();
+    return result;
+  }
+
 }
 
 
