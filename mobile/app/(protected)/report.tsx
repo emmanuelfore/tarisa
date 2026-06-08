@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, Alert, Plat
 import { Stack, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { Camera, MapPin, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Image as ImageIcon, X, Trash2, Check, WifiOff } from 'lucide-react-native';
+import { Camera, MapPin, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, Image as ImageIcon, X, Trash2, Check, WifiOff, UserCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,6 +12,8 @@ import { addToQueue } from '../../lib/offline-queue';
 import MapView, { Marker } from 'react-native-maps';
 import { formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
+import { useAuth } from '../../lib/AuthContext';
+import { supabase } from '../../lib/supabase';
 
 const STEPS = {
     PHOTO: 1,
@@ -37,8 +39,11 @@ const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
 export default function ReportScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     const { isOnline } = useNetworkStatus();
+
+    // All hooks declared unconditionally (Rules of Hooks)
     const [step, setStep] = useState(STEPS.PHOTO);
     const [loading, setLoading] = useState(false);
     const [isQueued, setIsQueued] = useState(false);
@@ -83,10 +88,13 @@ export default function ReportScreen() {
     const { data: categories = [] } = useQuery({
         queryKey: ['/api/categories'],
         queryFn: async () => {
-            const res = await api.get('/api/categories');
-            return res.data;
+            const { data, error } = await supabase.from('issue_categories').select('*');
+            if (error) throw error;
+            return data;
         }
     });
+
+
 
     // Step 1: Image
     const pickImage = async (useCamera: boolean) => {
@@ -152,14 +160,20 @@ export default function ReportScreen() {
             setDuplicateStatus('checking');
             const checkDuplicates = async () => {
                 try {
-                    const res = await api.get('/api/issues/nearby', {
-                        params: {
-                            lat: location.coords.latitude,
-                            lng: location.coords.longitude,
-                            radius: 0.1
-                        }
+                    const { data, error } = await supabase.from('issues').select('*').neq('status', 'resolved');
+                    if (error) throw error;
+                    
+                    // Simple distance filter (Roughly 0.1 deg is ~11km)
+                    const active = data.filter((i: any) => {
+                        if (!i.coordinates) return false;
+                        const [lat, lng] = i.coordinates.split(',').map(Number);
+                        const dLat = lat - location.coords.latitude;
+                        const dLng = lng - location.coords.longitude;
+                        // Basic pythagorean distance for small radius
+                        const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+                        return distance < 0.01; // Approx 1km
                     });
-                    const active = res.data.filter((i: any) => i.status !== 'resolved');
+
                     setNearbyIssues(active);
                     setDuplicateStatus(active.length > 0 ? 'found' : 'clean');
                 } catch (e) {

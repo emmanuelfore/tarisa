@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
 import {
     FileText, Award, CheckCircle, ArrowRight, PlusCircle,
@@ -35,7 +36,21 @@ export default function HomeScreen() {
         queryKey: ['my-issues'],
         enabled: !!user,
         queryFn: async () => {
-            try { return (await api.get('/api/issues/my')).data; }
+            try { 
+                const { data, error } = await supabase
+                    .from('issues')
+                    .select('*, comments(count), upvotes(count)')
+                    .eq('citizen_id', user?.id)
+                    .order('created_at', { ascending: false });
+                    
+                if (error) throw error;
+                return data.map((i: any) => ({
+                    ...i,
+                    createdAt: i.created_at,
+                    comments: i.comments[0]?.count || 0,
+                    upvotes: i.upvotes[0]?.count || 0
+                }));
+            }
             catch { return []; }
         }
     });
@@ -56,11 +71,19 @@ export default function HomeScreen() {
     const { data: communityIssues } = useQuery({
         queryKey: ['active-issues-public'],
         queryFn: async () => {
-            // Fetch all public issues. We can filter by status query param if we want, or client side.
-            // Listing all allows us to filter client side easily.
             try {
-                const res = await api.get('/api/issues');
-                return res.data;
+                const { data, error } = await supabase
+                    .from('issues')
+                    .select('*, comments(count), upvotes(count)')
+                    .order('created_at', { ascending: false });
+                    
+                if (error) throw error;
+                return data.map((i: any) => ({
+                    ...i,
+                    createdAt: i.created_at,
+                    comments: i.comments[0]?.count || 0,
+                    upvotes: i.upvotes[0]?.count || 0
+                }));
             } catch {
                 return [];
             }
@@ -261,88 +284,117 @@ export default function HomeScreen() {
 
                     {/* My Recent Reports */}
                     <View className="mb-4">
-                        <View className="flex-row justify-between items-center mb-4">
-                            <View>
-                                <View className="flex-row items-center gap-2 mb-0.5">
-                                    <Text className="font-bold text-gray-900 text-2xl">My Reports</Text>
-                                    {queueCount > 0 && (
-                                        <View className="bg-orange-500 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                                            <RefreshCcw size={10} color="white" />
-                                            <Text className="text-white text-[10px] font-bold">{queueCount} Pending</Text>
-                                        </View>
-                                    )}
+                        {!user ? (
+                            // Guest CTA banner
+                            <View className="bg-orange-50 border-2 border-orange-100 p-6 rounded-3xl items-center">
+                                <View className="w-14 h-14 bg-orange-600 rounded-2xl items-center justify-center mb-3">
+                                    <Zap size={28} color="white" strokeWidth={2.5} />
                                 </View>
-                                <Text className="text-gray-600 text-sm font-medium">Your contributions</Text>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => router.push('/(protected)/my-reports')}
-                                className="flex-row items-center bg-gray-200 px-4 py-2.5 rounded-full"
-                                activeOpacity={0.8}
-                            >
-                                <Text className="text-gray-900 font-bold text-sm">History</Text>
-                                <ChevronRight size={16} color="#111827" strokeWidth={3} />
-                            </TouchableOpacity>
-                        </View>
-
-                        {issues && issues.length > 0 ? (
-                            issues.slice(0, 3).map((issue: any) => {
-                                const statusColors = getStatusColor(issue.status);
-                                return (
-                                    <TouchableOpacity
-                                        key={issue.id}
-                                        className="bg-white p-5 rounded-3xl border-2 border-gray-200 shadow-lg mb-4"
-                                        onPress={() => router.push(`/issue/${issue.id}`)}
-                                        activeOpacity={0.9}
-                                    >
-                                        <View className="flex-row justify-between items-start mb-3">
-                                            <View className="flex-1 mr-4">
-                                                <Text className="font-bold text-gray-900 text-lg mb-1 leading-snug" numberOfLines={1}>
-                                                    {issue.title}
-                                                </Text>
-                                                <View className="flex-row items-center">
-                                                    <Clock size={12} color="#6b7280" strokeWidth={2} />
-                                                    <Text className="text-gray-700 text-sm ml-1.5 font-medium">
-                                                        {new Date(issue.createdAt).toLocaleDateString(undefined, {
-                                                            month: 'short', day: 'numeric', year: 'numeric'
-                                                        })}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                            <View className={clsx("px-3 py-2 rounded-full flex-row items-center gap-1.5", statusColors.bg)}>
-                                                <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColors.dot }} />
-                                                <Text className={clsx("text-xs font-bold", statusColors.text)}>
-                                                    {issue.status.replace('_', ' ').toUpperCase()}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        <View className="flex-row items-center pt-3 border-t border-gray-200">
-                                            <MapPin size={14} color="#6b7280" strokeWidth={2} />
-                                            <Text className="text-gray-700 text-sm ml-2 flex-1 font-medium" numberOfLines={1}>
-                                                {issue.location || 'Location not specified'}
-                                            </Text>
-                                            <ArrowRight size={18} color="#ea580c" strokeWidth={2.5} />
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })
-                        ) : (
-                            <View className="bg-white p-10 rounded-3xl border-2 border-gray-200 items-center shadow-lg">
-                                <View className="w-20 h-20 bg-orange-50 rounded-full items-center justify-center mb-4">
-                                    <Zap size={36} color="#ea580c" strokeWidth={2} />
-                                </View>
-                                <Text className="text-gray-900 font-bold text-xl mb-2">No reports yet</Text>
-                                <Text className="text-gray-600 text-sm text-center px-4 mb-6 leading-relaxed font-medium">
-                                    Start making a difference in your community today
+                                <Text className="text-gray-900 font-bold text-xl mb-1 text-center">Join the Community</Text>
+                                <Text className="text-gray-600 text-sm text-center px-2 mb-5 leading-relaxed font-medium">
+                                    Sign in to submit reports, track your issues, and earn CivicCredits.
                                 </Text>
                                 <TouchableOpacity
-                                    className="bg-orange-600 px-8 py-4 rounded-full shadow-lg"
-                                    onPress={() => router.push('/report')}
+                                    className="w-full bg-orange-600 py-4 rounded-2xl items-center shadow-lg mb-2"
+                                    onPress={() => router.push('/(auth)/login')}
                                     activeOpacity={0.8}
                                 >
-                                    <Text className="text-white font-bold text-base">Create First Report</Text>
+                                    <Text className="text-white font-bold text-base">Sign In</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    className="w-full border-2 border-gray-200 py-4 rounded-2xl items-center"
+                                    onPress={() => router.push('/(auth)/register')}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text className="text-gray-700 font-bold text-base">Create Account</Text>
                                 </TouchableOpacity>
                             </View>
+                        ) : (
+                            <>
+                                <View className="flex-row justify-between items-center mb-4">
+                                    <View>
+                                        <View className="flex-row items-center gap-2 mb-0.5">
+                                            <Text className="font-bold text-gray-900 text-2xl">My Reports</Text>
+                                            {queueCount > 0 && (
+                                                <View className="bg-orange-500 px-2 py-0.5 rounded-full flex-row items-center gap-1">
+                                                    <RefreshCcw size={10} color="white" />
+                                                    <Text className="text-white text-[10px] font-bold">{queueCount} Pending</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <Text className="text-gray-600 text-sm font-medium">Your contributions</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => router.push('/(protected)/my-reports')}
+                                        className="flex-row items-center bg-gray-200 px-4 py-2.5 rounded-full"
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text className="text-gray-900 font-bold text-sm">History</Text>
+                                        <ChevronRight size={16} color="#111827" strokeWidth={3} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {issues && issues.length > 0 ? (
+                                    issues.slice(0, 3).map((issue: any) => {
+                                        const statusColors = getStatusColor(issue.status);
+                                        return (
+                                            <TouchableOpacity
+                                                key={issue.id}
+                                                className="bg-white p-5 rounded-3xl border-2 border-gray-200 shadow-lg mb-4"
+                                                onPress={() => router.push(`/issue/${issue.id}`)}
+                                                activeOpacity={0.9}
+                                            >
+                                                <View className="flex-row justify-between items-start mb-3">
+                                                    <View className="flex-1 mr-4">
+                                                        <Text className="font-bold text-gray-900 text-lg mb-1 leading-snug" numberOfLines={1}>
+                                                            {issue.title}
+                                                        </Text>
+                                                        <View className="flex-row items-center">
+                                                            <Clock size={12} color="#6b7280" strokeWidth={2} />
+                                                            <Text className="text-gray-700 text-sm ml-1.5 font-medium">
+                                                                {new Date(issue.createdAt).toLocaleDateString(undefined, {
+                                                                    month: 'short', day: 'numeric', year: 'numeric'
+                                                                })}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                    <View className={clsx("px-3 py-2 rounded-full flex-row items-center gap-1.5", statusColors.bg)}>
+                                                        <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColors.dot }} />
+                                                        <Text className={clsx("text-xs font-bold", statusColors.text)}>
+                                                            {issue.status.replace('_', ' ').toUpperCase()}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+
+                                                <View className="flex-row items-center pt-3 border-t border-gray-200">
+                                                    <MapPin size={14} color="#6b7280" strokeWidth={2} />
+                                                    <Text className="text-gray-700 text-sm ml-2 flex-1 font-medium" numberOfLines={1}>
+                                                        {issue.location || 'Location not specified'}
+                                                    </Text>
+                                                    <ArrowRight size={18} color="#ea580c" strokeWidth={2.5} />
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })
+                                ) : (
+                                    <View className="bg-white p-10 rounded-3xl border-2 border-gray-200 items-center shadow-lg">
+                                        <View className="w-20 h-20 bg-orange-50 rounded-full items-center justify-center mb-4">
+                                            <Zap size={36} color="#ea580c" strokeWidth={2} />
+                                        </View>
+                                        <Text className="text-gray-900 font-bold text-xl mb-2">No reports yet</Text>
+                                        <Text className="text-gray-600 text-sm text-center px-4 mb-6 leading-relaxed font-medium">
+                                            Start making a difference in your community today
+                                        </Text>
+                                        <TouchableOpacity
+                                            className="bg-orange-600 px-8 py-4 rounded-full shadow-lg"
+                                            onPress={() => router.push('/report')}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text className="text-white font-bold text-base">Create First Report</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </>
                         )}
                     </View>
 

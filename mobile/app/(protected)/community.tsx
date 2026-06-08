@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, TextInput } 
 import { Stack, useRouter, Link } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, Clock, Filter, MapPin, Search, Users, TrendingUp, MessageCircle, ThumbsUp, AlertTriangle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,8 +19,9 @@ export default function CommunityScreen() {
     const { data: categories = [] } = useQuery({
         queryKey: ['/api/categories'],
         queryFn: async () => {
-            const res = await api.get('/api/categories');
-            return res.data;
+            const { data, error } = await supabase.from('issue_categories').select('*');
+            if (error) throw error;
+            return data;
         }
     });
 
@@ -31,11 +33,20 @@ export default function CommunityScreen() {
     const { data: issues, isLoading, error } = useQuery({
         queryKey: ['community-issues', selectedCategory],
         queryFn: async () => {
-            const params: any = {};
-            if (selectedCategory !== 'all') params.category = selectedCategory;
+            let query = supabase.from('issues').select('*, comments(count), upvotes(count)').order('created_at', { ascending: false });
+            if (selectedCategory !== 'all') {
+                query = query.eq('category', selectedCategory);
+            }
 
-            const res = await api.get('/api/issues', { params });
-            return res.data;
+            const { data, error } = await query;
+            if (error) throw error;
+
+            return data.map((i: any) => ({
+                ...i,
+                createdAt: i.created_at,
+                comments: i.comments[0]?.count || 0,
+                upvotes: i.upvotes[0]?.count || 0
+            }));
         }
     });
 

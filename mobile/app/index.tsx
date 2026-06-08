@@ -17,5 +17,5 @@ export default function Index() {
         return <Redirect href="/(protected)/home" />;
     }
 
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href="/(protected)/community" />;
 }
