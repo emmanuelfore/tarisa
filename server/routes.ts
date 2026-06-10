@@ -2587,7 +2587,7 @@ export async function registerRoutes(
 
   // ============ APK DOWNLOAD ROUTE ============
   app.get("/api/download/apk", (req, res) => {
-    const apkPath = path.join(process.cwd(), "application-c632019f-6bb2-4ae4-bd44-ae8ef9b99d46.apk");
+    const apkPath = path.join(process.cwd(), "application-12c248cc-7f1f-4a91-ac7d-65774eed8cf3.apk");
     
     if (!fs.existsSync(apkPath)) {
       return res.status(404).json({ error: "APK file not found" });
