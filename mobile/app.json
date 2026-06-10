@@ -32,8 +32,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6a5aad70-36b3-4d2b-93f5-d4c43cba61aa"
+        "projectId": "ab48e0da-e782-4e84-872b-14494b337b40"
       }
-    }
+    },
+    "owner": "manuchidovi"
   }
 }

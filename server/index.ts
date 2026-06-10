@@ -31,6 +31,8 @@ app.use(cors({
   credentials: true,
 }));
 
+app.set("trust proxy", 1); // Trust proxy required for secure cookies over reverse proxy
+
 app.use((req, res, next) => {
   const sessionId = req.headers['x-session-id'] || req.headers['X-Session-ID'];
   if (sessionId) {
@@ -45,7 +47,8 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "production" ? "auto" : false,
+      sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
   })
